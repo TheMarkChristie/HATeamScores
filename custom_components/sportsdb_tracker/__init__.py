@@ -4,10 +4,9 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 
-from .api import SportsDBClient
+from .api import get_client
 from .const import DOMAIN, STORAGE_VERSION
 from .coordinator import SportsDBCoordinator
 
@@ -16,16 +15,8 @@ PLATFORMS = [Platform.SENSOR]
 type SportsDBConfigEntry = ConfigEntry[SportsDBCoordinator]
 
 
-def _client(hass: HomeAssistant) -> SportsDBClient:
-    """One client for every team, so the key's rate limit is shared."""
-    shared = hass.data.setdefault(DOMAIN, {})
-    if "client" not in shared:
-        shared["client"] = SportsDBClient(async_get_clientsession(hass))
-    return shared["client"]
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: SportsDBConfigEntry) -> bool:
-    coordinator = SportsDBCoordinator(hass, entry, _client(hass))
+    coordinator = SportsDBCoordinator(hass, entry, get_client(hass))
     await coordinator.async_load()
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator

@@ -7,11 +7,10 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.util import slugify
 
-from .api import SportsDBClient, SportsDBError
+from .api import SportsDBError, get_client
 from .const import (
     CONF_API_KEY,
     CONF_LEAGUE,
@@ -66,9 +65,8 @@ class SportsDBConfigFlow(ConfigFlow, domain=DOMAIN):
             if not self._search:
                 errors["search"] = "no_teams"
             else:
-                client = SportsDBClient(async_get_clientsession(self.hass))
                 try:
-                    raws = await client.search_teams(self._api_key, self._search)
+                    raws = await get_client(self.hass).search_teams(self._api_key, self._search)
                 except SportsDBError:
                     errors["base"] = "cannot_connect"
                 else:

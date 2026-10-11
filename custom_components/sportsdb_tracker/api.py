@@ -14,16 +14,28 @@ from urllib.parse import quote
 
 import aiohttp
 
-from .const import API_BASE, DEFAULT_API_KEY, FREE_MIN_INTERVAL, PREMIUM_MIN_INTERVAL
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+from .const import API_BASE, DEFAULT_API_KEY, DOMAIN, FREE_MIN_INTERVAL, PREMIUM_MIN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 TIMEOUT = aiohttp.ClientTimeout(total=25)
 CACHE_SECONDS = 60
-BACKOFF_SECONDS = 30                      # after a 429, nothing is sent for this long
+BACKOFF_SECONDS = 30                      # after a 429, nothing is sent for this long, then the call is tried once more
 
 
 class SportsDBError(Exception):
     """TheSportsDB did not answer, answered with an error, or sent something that is not JSON."""
+
+
+def get_client(hass: HomeAssistant) -> "SportsDBClient":
+    """The one client for this Home Assistant: every team and every setup flow goes through it, so the key's
+    rate limit is shared."""
+    shared = hass.data.setdefault(DOMAIN, {})
+    if "client" not in shared:
+        shared["client"] = SportsDBClient(async_get_clientsession(hass))
+    return shared["client"]
 
 
 class SportsDBClient:
@@ -42,24 +54,30 @@ class SportsDBClient:
         if hit and monotonic() < hit[0]:
             return hit[1]
         url = f"{API_BASE}/{quote(key, safe='')}/{call}"
+        interval = FREE_MIN_INTERVAL if key == DEFAULT_API_KEY else PREMIUM_MIN_INTERVAL
         async with self._lock:
-            wait = self._next_at - monotonic()
-            if wait > 0:
-                await asyncio.sleep(wait)
-            interval = FREE_MIN_INTERVAL if key == DEFAULT_API_KEY else PREMIUM_MIN_INTERVAL
-            try:
-                async with self._session.get(url, timeout=TIMEOUT, headers={"Accept": "application/json"}) as resp:
-                    if resp.status == 429:
-                        self._next_at = monotonic() + BACKOFF_SECONDS
-                        raise SportsDBError("rate limit reached (HTTP 429)")
-                    if resp.status != 200:
-                        raise SportsDBError(f"HTTP {resp.status} for {call}")
-                    data = await resp.json(content_type=None)
-            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-                raise SportsDBError(f"{type(err).__name__}: {err}") from err
-            finally:
-                if monotonic() + interval > self._next_at:
-                    self._next_at = monotonic() + interval
+            data: Any = None
+            for attempt in (1, 2):
+                wait = self._next_at - monotonic()
+                if wait > 0:
+                    await asyncio.sleep(wait)
+                try:
+                    async with self._session.get(url, timeout=TIMEOUT, headers={"Accept": "application/json"}) as resp:
+                        if resp.status == 429:
+                            self._next_at = monotonic() + BACKOFF_SECONDS
+                            if attempt == 1:
+                                _LOGGER.debug("TheSportsDB rate limit reached; waiting %s s before %s", BACKOFF_SECONDS, call)
+                                continue
+                            raise SportsDBError("rate limit reached (HTTP 429) twice")
+                        if resp.status != 200:
+                            raise SportsDBError(f"HTTP {resp.status} for {call}")
+                        data = await resp.json(content_type=None)
+                        break
+                except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                    raise SportsDBError(f"{type(err).__name__}: {err}") from err
+                finally:
+                    if monotonic() + interval > self._next_at:
+                        self._next_at = monotonic() + interval
         if not isinstance(data, dict):
             raise SportsDBError(f"unexpected answer for {call}")
         self._cache[cache_key] = (monotonic() + CACHE_SECONDS, data)
