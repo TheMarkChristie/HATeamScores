@@ -239,11 +239,19 @@ class Memory:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Memory:
-        return cls(tracked=Event.from_dict(data["tracked"]) if data.get("tracked") else None,
-                   last=Event.from_dict(data["last"]) if data.get("last") else None,
-                   checked_next=_parse_iso(data.get("checked_next")), seeded=bool(data.get("seeded")),
-                   upcoming=[Event.from_dict(e) for e in data.get("upcoming") or []],
-                   recent=[Event.from_dict(e) for e in data.get("recent") or []])
+        mem = cls(tracked=Event.from_dict(data["tracked"]) if data.get("tracked") else None,
+                  last=Event.from_dict(data["last"]) if data.get("last") else None,
+                  checked_next=_parse_iso(data.get("checked_next")), seeded=bool(data.get("seeded")),
+                  upcoming=[Event.from_dict(e) for e in data.get("upcoming") or []],
+                  recent=[Event.from_dict(e) for e in data.get("recent") or []])
+        # memory saved by a version without the lists: the games it knew go into them
+        if mem.tracked is not None and not any(e.id == mem.tracked.id for e in mem.upcoming):
+            mem.upcoming.insert(0, mem.tracked)
+        if mem.last is not None and not any(e.id == mem.last.id for e in mem.recent):
+            if mem.last.finished_at is None:
+                mem.last.finished_at = mem.last.expected_end or mem.last.start
+            mem.recent.insert(0, mem.last)
+        return mem
 
 
 KEEP_RECENT = 10

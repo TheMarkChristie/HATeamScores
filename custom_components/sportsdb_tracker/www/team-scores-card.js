@@ -114,29 +114,33 @@
       const states = this._hass.states;
       const mine = new Set();
       const games = new Map();
-      const add = (g, teamId) => {
+      const add = (g) => {
         if (!g || !g.date) return;
         const key = g.event_id || g.name + g.date;
         const prev = games.get(key);
-        if (!prev || (g.finished && !prev.finished) || (g.home_score != null && prev.home_score == null)) games.set(key, g);
+        if (!prev) { games.set(key, Object.assign({}, g)); return; }
+        // the fuller record wins; badges and ids fill in from whichever copy has them
+        const better = (g.finished && !prev.finished) || (g.home_score != null && prev.home_score == null) || (g.live && !prev.live);
+        const merged = better ? Object.assign({}, prev, g) : Object.assign({}, g, prev);
+        for (const k of ["home_badge", "away_badge", "home_id", "away_id", "venue", "league"]) if (merged[k] == null) merged[k] = g[k] != null ? g[k] : prev[k];
+        games.set(key, merged);
       };
       for (const id of this._entities()) {
         const a = states[id].attributes || {};
         if (a.team_id) mine.add(String(a.team_id));
-        if (Array.isArray(a.fixtures) || Array.isArray(a.results)) {
-          (a.results || []).forEach((g) => add(g));
-          (a.fixtures || []).forEach((g) => add(g));
-        } else {
-          // an older sensor: the game it shows, plus the one before or after it
-          const st = states[id].state;
-          if (a.date) add({ event_id: a.event_id, name: a.event_name, date: a.date, venue: a.venue, league: a.league, sport: a.sport,
-            home_id: a.team_homeaway === "home" ? a.team_id : a.opponent_id, away_id: a.team_homeaway === "home" ? a.opponent_id : a.team_id,
-            home: a.team_homeaway === "home" ? a.team_name : a.opponent_name, away: a.team_homeaway === "home" ? a.opponent_name : a.team_name,
-            home_badge: a.team_homeaway === "home" ? a.team_logo : a.opponent_logo, away_badge: a.team_homeaway === "home" ? a.opponent_logo : a.team_logo,
-            home_score: a.team_homeaway === "home" ? a.team_score : a.opponent_score, away_score: a.team_homeaway === "home" ? a.opponent_score : a.team_score,
-            finished: st === "POST" && a.team_score != null, live: st === "IN" });
-          add(a.last_game); add(a.next_game);
-        }
+        // the game the sensor shows, the ones either side of it, and its fixtures and results lists: all of them,
+        // deduplicated by event id, so a sensor whose lists are still filling (or an older sensor) shows its game
+        const st = states[id].state;
+        const home = a.team_homeaway === "home";
+        if (a.date) add({ event_id: a.event_id, name: a.event_name, date: a.date, venue: a.venue, league: a.league, sport: a.sport,
+          home_id: home ? a.team_id : a.opponent_id, away_id: home ? a.opponent_id : a.team_id,
+          home: home ? a.team_name : a.opponent_name, away: home ? a.opponent_name : a.team_name,
+          home_badge: home ? a.team_logo : a.opponent_logo, away_badge: home ? a.opponent_logo : a.team_logo,
+          home_score: home ? a.team_score : a.opponent_score, away_score: home ? a.opponent_score : a.team_score,
+          finished: st === "POST" && a.team_score != null, live: st === "IN" });
+        add(a.last_game); add(a.next_game);
+        (a.results || []).forEach((g) => add(g));
+        (a.fixtures || []).forEach((g) => add(g));
       }
       return { games: [...games.values()], mine };
     }

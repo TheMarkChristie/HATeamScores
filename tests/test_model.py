@@ -66,9 +66,17 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(model.prefix_for_sport("Soccer"), "football")
         self.assertEqual(model.prefix_for_sport("Field Hockey"), "field_hockey")
 
+    def test_old_memory_seeds_the_lists(self):
+        old = {"tracked": model.Event.parse(HOME_NS).to_dict(), "last": model.Event.parse(AWAY_FT).to_dict(), "seeded": True}
+        mem = model.Memory.from_dict(old)
+        self.assertEqual([e.id for e in mem.upcoming], ["2537330"])
+        self.assertEqual([e.id for e in mem.recent], ["2523079"])
+        self.assertIsNotNone(mem.recent[0].finished_at)
+
     def test_round_trip(self):
         mem = model.Memory(tracked=model.Event.parse(HOME_NS), last=model.Event.parse(AWAY_FT), checked_next=T("2026-10-11T10:00:00"), seeded=True)
         mem.last.finished_at = T("2026-09-23T21:20:00")
+        mem.upcoming, mem.recent = [mem.tracked], [mem.last]
         back = model.Memory.from_dict(mem.to_dict())
         self.assertEqual(back.to_dict(), mem.to_dict())
         self.assertEqual(back.last.finished_at, T("2026-09-23T21:20:00"))
