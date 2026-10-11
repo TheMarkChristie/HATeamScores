@@ -1,0 +1,121 @@
+"""One coordinator per team: reads TheSportsDB on a schedule and keeps the team's fixture memory on disk."""
+from __future__ import annotations
+
+import logging
+from datetime import timedelta
+from typing import Any
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
+
+from .api import SportsDBClient, SportsDBError
+from .const import (
+    CONF_API_KEY,
+    CONF_LEAGUE,
+    CONF_PRE_HOURS,
+    CONF_RESULTS_HOURS,
+    CONF_SPORT,
+    CONF_TEAM_ID,
+    CONF_TEAM_NAME,
+    DEFAULT_API_KEY,
+    DEFAULT_PRE_HOURS,
+    DEFAULT_RESULTS_HOURS,
+    DOMAIN,
+    STORAGE_VERSION,
+    UPDATE_MINUTES_IDLE,
+    UPDATE_MINUTES_LIVE,
+)
+from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
+    """Keeps one team's next fixture and latest result current."""
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, client: SportsDBClient) -> None:
+        super().__init__(hass, _LOGGER, config_entry=entry, name=f"{DOMAIN} {entry.title}",
+                         update_interval=timedelta(minutes=UPDATE_MINUTES_IDLE))
+        self.client = client
+        self.entry = entry
+        self.team = Team(id=str(entry.data[CONF_TEAM_ID]), name=entry.data.get(CONF_TEAM_NAME) or entry.title,
+                         sport=entry.data.get(CONF_SPORT) or "", league=entry.data.get(CONF_LEAGUE))
+        self.memory = Memory()
+        self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
+        self._team_fresh = False
+        self._saved: dict[str, Any] | None = None
+
+    def _setting(self, key: str, default: Any) -> Any:
+        if key in self.entry.options:
+            return self.entry.options[key]
+        return self.entry.data.get(key, default)
+
+    @property
+    def api_key(self) -> str:
+        return str(self._setting(CONF_API_KEY, DEFAULT_API_KEY) or DEFAULT_API_KEY)
+
+    @property
+    def results_hours(self) -> int:
+        return int(self._setting(CONF_RESULTS_HOURS, DEFAULT_RESULTS_HOURS))
+
+    @property
+    def pre_hours(self) -> int:
+        return int(self._setting(CONF_PRE_HOURS, DEFAULT_PRE_HOURS))
+
+    async def async_load(self) -> None:
+        """What was saved last time, so a restart shows the fixture and result at once and keeps an away game's id."""
+        data = await self._store.async_load()
+        if not isinstance(data, dict):
+            return
+        try:
+            self.memory = Memory.from_dict(data.get("memory") or {})
+            if data.get("team"):
+                self.team = Team.from_dict(data["team"])
+        except (KeyError, TypeError, ValueError) as err:
+            _LOGGER.warning("%s: stored fixtures could not be read (%s); starting afresh", self.name, err)
+            self.memory = Memory()
+        self._saved = data
+
+    async def _async_update_data(self) -> Memory:
+        now = dt_util.utcnow()
+        mem, key = self.memory, self.api_key
+        try:
+            if not self._team_fresh:
+                raw = await self.client.lookup_team(key, self.team.id)
+                if raw:
+                    self.team = Team.parse(raw)
+                self._team_fresh = True
+            if needs_lookup(mem, now) and mem.tracked is not None:
+                raw = await self.client.lookup_event(key, mem.tracked.id)
+                absorb_lookup(mem, Event.parse(raw) if raw else None, now)
+            if needs_next(mem, now):
+                raws = await self.client.next_events(key, self.team.id)
+                absorb_next(mem, [Event.parse(r) for r in raws], now)
+                if not mem.seeded:
+                    raws = await self.client.last_events(key, self.team.id)
+                    absorb_last(mem, [Event.parse(r) for r in raws], now)
+        except SportsDBError as err:
+            if mem.tracked is None and mem.last is None and not self._team_fresh:
+                raise UpdateFailed(f"TheSportsDB: {err}") from err
+            _LOGGER.warning("%s: TheSportsDB: %s (keeping the last known fixtures)", self.name, err)
+        data = {"memory": mem.to_dict(), "team": self.team.to_dict()}
+        if data != self._saved:
+            await self._store.async_save(data)
+            self._saved = data
+        self.update_interval = self._interval(mem, now)
+        return mem
+
+    def _interval(self, mem: Memory, now) -> timedelta:
+        tracked = mem.tracked
+        live_soon = tracked is not None and tracked.start is not None and tracked.start - now <= timedelta(minutes=15)
+        base = timedelta(minutes=UPDATE_MINUTES_LIVE if live_soon else UPDATE_MINUTES_IDLE)
+        change = next_transition(mem, now, self.results_hours, self.pre_hours)
+        if change is not None:
+            base = min(base, max(timedelta(minutes=1), change - now + timedelta(seconds=5)))
+        return base
+
+    async def async_remove_store(self) -> None:
+        await self._store.async_remove()

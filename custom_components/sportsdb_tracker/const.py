@@ -1,0 +1,79 @@
+"""Constants for TheSportsDB Tracker. Nothing here imports Home Assistant, so the model and its tests stay pure."""
+
+DOMAIN = "sportsdb_tracker"
+NAME = "TheSportsDB Tracker"
+ATTRIBUTION = "Data provided by TheSportsDB.com"
+
+# TheSportsDB v1 API: https://www.thesportsdb.com/api/v1/json/<key>/<call>.php
+API_BASE = "https://www.thesportsdb.com/api/v1/json"
+DEFAULT_API_KEY = "123"                  # the public free key: 30 requests a minute
+FREE_MIN_INTERVAL = 2.2                  # seconds between requests on the free key (about 27 a minute)
+PREMIUM_MIN_INTERVAL = 0.7               # a premium key allows 100 a minute
+
+CONF_API_KEY = "api_key"
+CONF_TEAM_ID = "team_id"
+CONF_TEAM_NAME = "team_name"
+CONF_SPORT = "sport"
+CONF_LEAGUE = "league"
+CONF_PREFIX = "prefix"                   # the sensor's entity id prefix, e.g. football -> sensor.football_<team>
+CONF_RESULTS_HOURS = "results_hours"     # how long a full-time result stays on the sensor
+CONF_PRE_HOURS = "pre_hours"             # switch from the result to the next fixture this long before kick-off
+DEFAULT_RESULTS_HOURS = 24
+DEFAULT_PRE_HOURS = 6
+
+STORAGE_VERSION = 1
+
+UPDATE_MINUTES_IDLE = 30                 # between checks of the next fixture
+UPDATE_MINUTES_LIVE = 10                 # while a game is on, or its result is awaited
+NEXT_CHECK_MINUTES = 30                  # re-read the next fixture this often (moved games, postponements)
+LOOKUP_GRACE_HOURS = 24                  # give up on a fixture this long after its expected end if the API loses it
+
+# Mark's names for the sports, and the entity id prefixes the scoreboard card groups by
+SPORT_LABEL = {"Soccer": "Football"}
+SPORT_PREFIX = {
+    "Soccer": "football",
+    "Ice Hockey": "ice_hockey",
+    "American Football": "american_football",
+    "Basketball": "basketball",
+}
+SPORT_ICON = {
+    "Soccer": "mdi:soccer",
+    "Ice Hockey": "mdi:hockey-puck",
+    "American Football": "mdi:football",
+    "Basketball": "mdi:basketball",
+    "Rugby": "mdi:rugby",
+    "Baseball": "mdi:baseball",
+    "Cricket": "mdi:cricket",
+    "Australian Football": "mdi:football-australian",
+    "Handball": "mdi:handball",
+    "Volleyball": "mdi:volleyball",
+    "Tennis": "mdi:tennis",
+    "Golf": "mdi:golf",
+}
+DEFAULT_ICON = "mdi:scoreboard"
+
+# How long a game runs, kick-off to final whistle, including the breaks (minutes): the sensor shows the game as
+# in play for this long, then waits for TheSportsDB to post the result
+GAME_MINUTES = {
+    "Soccer": 120,
+    "Ice Hockey": 170,
+    "American Football": 210,
+    "Basketball": 150,
+    "Rugby": 120,
+    "Baseball": 200,
+    "Cricket": 480,
+    "Australian Football": 150,
+    "Handball": 110,
+    "Volleyball": 130,
+}
+DEFAULT_GAME_MINUTES = 180
+RESULT_WAIT_MINUTES = 30                 # after the expected end, "In play" becomes "Awaiting result"
+
+# TheSportsDB status values of a finished game (seen: FT in every sport checked on 11 Oct 2026)
+FINISHED_STATUSES = {"FT", "AET", "AOT", "AP", "PEN", "FT/OT", "FT/SO", "FT/PEN", "AWARDED", "FINISHED", "MATCH FINISHED", "FINAL", "F"}
+CANCELLED_STATUSES = {"CANC", "CANCELLED", "CANCELED", "POSTP", "POSTP.", "POSTPONED", "ABD", "ABANDONED", "SUSP", "SUSPENDED", "WO", "WALKOVER"}
+
+STATE_PRE = "PRE"
+STATE_IN = "IN"
+STATE_POST = "POST"
+STATE_NOT_FOUND = "NOT_FOUND"
