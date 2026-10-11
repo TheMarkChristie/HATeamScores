@@ -3,7 +3,7 @@
 The card's script is loaded as an extra frontend module too, but the Companion app can draw a dashboard before an
 extra module has arrived, and the card then stays "Custom element doesn't exist" until a page reload. Lovelace waits
 for its resources before it draws, so the script is kept in the resource list as well (storage mode only; YAML
-resources belong to the user). The pattern is NeonPlan 3D's (MIT).
+resources belong to the user).
 """
 from __future__ import annotations
 

@@ -13,6 +13,7 @@
  * show_league: true
  *
  * The integration serves this file and registers it as a dashboard resource; nothing to install.
+ * Copyright (c) 2026 Mark Christie. MIT licence. Data provided by TheSportsDB.com.
  */
 (function () {
   const ATTRIBUTION = "Data provided by TheSportsDB.com";

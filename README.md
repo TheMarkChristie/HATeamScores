@@ -5,9 +5,8 @@ team with the next fixture (date and time, venue, both teams and their logos), t
 ice hockey, American football, basketball, rugby, baseball, cricket and any other team sport TheSportsDB lists, from
 the big leagues down to the UK Elite Ice Hockey League, Norway's Fjordkraft-ligaen and Super League Basketball.
 
-The sensors use the same shape as the [Team Tracker](https://github.com/vasqued2/ha-teamtracker) integration, so the
-[TeamTracker Scoreboard Card](https://github.com/marcintk/ha-teamtracker-scoreboard-card) shows them as a scoreboard,
-grouped by sport.
+It brings its own Team Scores card, which lays every team's games out by day, and registers it with your dashboards
+itself. One download, nothing else to install.
 
 The free TheSportsDB key is enough. It has no live scores, so the sensor shows a game as in play from kick-off until
 the clock says it is over, then the result once TheSportsDB posts it (usually within the hour).
@@ -90,23 +89,18 @@ your teams play (Liverpool v Manchester City) appears once.
 On the free key TheSportsDB lists one coming fixture per team, so the two weeks ahead hold each team's next game.
 With a premium key the list fills with everything TheSportsDB has scheduled.
 
-### Grouped by sport instead
+### One sport per card
 
-The sensors also work with the [TeamTracker Scoreboard Card](https://github.com/marcintk/ha-teamtracker-scoreboard-card)
-(installed separately through HACS), which groups by sections of sensors:
+Give the card a `prefixes` list to show one sport. The prefixes are `sensor.football_` for soccer,
+`sensor.ice_hockey_`, `sensor.american_football_`, `sensor.basketball_`, and the sport's name in lower case with
+underscores for the rest (`sensor.rugby_`, `sensor.field_hockey_`).
 
 ```yaml
-type: custom:ha-teamtracker-scoreboard-card
-name_format: name
-sections:
-  - name: Football
-    prefix: sensor.football_
-  - name: Ice Hockey
-    prefix: sensor.ice_hockey_
+type: custom:team-scores-card
+title: Football
+prefixes:
+  - sensor.football_
 ```
-
-The prefixes are `football_` for soccer, `ice_hockey_`, `american_football_`, `basketball_`, and the sport's name in
-lower case with underscores for the rest (`rugby_`, `field_hockey_`).
 
 ## The sensor
 
@@ -127,8 +121,8 @@ nothing for the team, for example in the off-season).
 | `results` | The finished games the integration has seen, latest first, in the same shape with the scores and `finished: true` |
 | `next_game`, `last_game` | The single game on the other side of the one shown, in the same shape |
 
-`team_record`, `tv_network`, `odds`, `last_play` and `series_summary` are present for the card and always empty:
-TheSportsDB does not carry them.
+`team_record`, `tv_network`, `odds`, `last_play` and `series_summary` are always empty: TheSportsDB does not carry
+them. They are there so the sensor also fits scoreboard cards that expect them.
 
 The entity's picture is the team's badge, so the sensor also looks right in an entities card or a tile.
 
@@ -165,10 +159,9 @@ the fixtures exist.
 - **Logs.** Warnings from the integration appear under **Settings > System > Logs**, filtered for
   `sportsdb_tracker`.
 
-## Credits and licence
+## Data and licence
 
-Data provided by [TheSportsDB.com](https://www.thesportsdb.com). Card by
-[marcintk](https://github.com/marcintk/ha-teamtracker-scoreboard-card); attribute shape after
-[vasqued2's Team Tracker](https://github.com/vasqued2/ha-teamtracker).
+Data provided by [TheSportsDB.com](https://www.thesportsdb.com), whose terms ask for that line on free use; each
+sensor carries it as its attribution.
 
 MIT licence. Copyright (c) 2026 Mark Christie.

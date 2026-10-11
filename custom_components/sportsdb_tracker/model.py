@@ -6,8 +6,8 @@ around these functions:
   needs_lookup / absorb_lookup   a fixture whose kick-off has passed is looked up by id until it is finished
   needs_next / absorb_next       the team's next fixture is read, and re-read now and then in case it moved
   absorb_last                    on first run, the latest result TheSportsDB lists (a home game on the free key)
-  present                        the sensor's state (PRE, IN, POST, NOT_FOUND) and attributes, in the scoreboard
-                                 card's shape (the same as the Team Tracker integration)
+  present                        the sensor's state (PRE, IN, POST, NOT_FOUND) and attributes: the game shown, both
+                                 sides with badges, and the fixtures and results lists the Team Scores card reads
 """
 from __future__ import annotations
 
@@ -137,8 +137,8 @@ class Team:
 
     @property
     def abbr(self) -> str:
-        """Always derived from the name, the same way as an opponent's, so the two sensors of one game agree on the
-        pair of abbreviations the scoreboard card merges rows by."""
+        """Always derived from the name, the same way as an opponent's, so the two sensors of one game carry the
+        same pair of abbreviations."""
         return abbreviation(self.name)
 
     def to_dict(self) -> dict[str, Any]:
