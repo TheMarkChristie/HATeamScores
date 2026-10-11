@@ -31,6 +31,7 @@ from .const import (
 from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
 
 _LOGGER = logging.getLogger(__name__)
+RETRY_MINUTES = 3
 
 
 class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
@@ -82,6 +83,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
     async def _async_update_data(self) -> Memory:
         now = dt_util.utcnow()
         mem, key = self.memory, self.api_key
+        failed = False
         try:
             if not self._team_fresh:
                 raw = await self.client.lookup_team(key, self.team.id)
@@ -101,11 +103,14 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
             if mem.tracked is None and mem.last is None and not self._team_fresh:
                 raise UpdateFailed(f"TheSportsDB: {err}") from err
             _LOGGER.warning("%s: TheSportsDB: %s (keeping the last known fixtures)", self.name, err)
+            failed = True
         data = {"memory": mem.to_dict(), "team": self.team.to_dict()}
         if data != self._saved:
             await self._store.async_save(data)
             self._saved = data
         self.update_interval = self._interval(mem, now)
+        if failed:                                   # a refused read is tried again soon, not in half an hour
+            self.update_interval = min(self.update_interval, timedelta(minutes=RETRY_MINUTES))
         return mem
 
     def _interval(self, mem: Memory, now) -> timedelta:
