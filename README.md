@@ -44,7 +44,11 @@ This works the same in a browser and in the Companion app on a phone.
 4. **Name the sensor.** The name is what Home Assistant shows; the sensor's entity id is given on the page, for
    example `sensor.football_st_johnstone`. Select **Submit**.
 
-Repeat for each team. A team cannot be added twice.
+Repeat for each team. A team cannot be added twice. Adding many teams in one go is fine: every team's reads go
+through one paced client, and a refused request waits half a minute and tries again.
+
+The integration carries its own icon (a scoreboard), which Home Assistant 2026.3 and later show in the integrations
+list and on each team's device page.
 
 ### Options
 
