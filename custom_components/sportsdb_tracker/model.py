@@ -12,7 +12,7 @@ around these functions:
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
@@ -137,7 +137,9 @@ class Team:
 
     @property
     def abbr(self) -> str:
-        return (self.short or abbreviation(self.name)).upper()
+        """Always derived from the name, the same way as an opponent's, so the two sensors of one game agree on the
+        pair of abbreviations the scoreboard card merges rows by."""
+        return abbreviation(self.name)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -227,16 +229,38 @@ class Memory:
     last: Event | None = None           # the latest finished game it knows
     checked_next: datetime | None = None
     seeded: bool = False                # the first-run read of eventslast has been done
+    upcoming: list[Event] = field(default_factory=list)   # every coming fixture the API listed, soonest first
+    recent: list[Event] = field(default_factory=list)     # finished games it has seen, latest first (at most KEEP_RECENT)
 
     def to_dict(self) -> dict[str, Any]:
         return {"tracked": self.tracked.to_dict() if self.tracked else None, "last": self.last.to_dict() if self.last else None,
-                "checked_next": _iso(self.checked_next), "seeded": self.seeded}
+                "checked_next": _iso(self.checked_next), "seeded": self.seeded,
+                "upcoming": [e.to_dict() for e in self.upcoming], "recent": [e.to_dict() for e in self.recent]}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Memory:
         return cls(tracked=Event.from_dict(data["tracked"]) if data.get("tracked") else None,
                    last=Event.from_dict(data["last"]) if data.get("last") else None,
-                   checked_next=_parse_iso(data.get("checked_next")), seeded=bool(data.get("seeded")))
+                   checked_next=_parse_iso(data.get("checked_next")), seeded=bool(data.get("seeded")),
+                   upcoming=[Event.from_dict(e) for e in data.get("upcoming") or []],
+                   recent=[Event.from_dict(e) for e in data.get("recent") or []])
+
+
+KEEP_RECENT = 10
+
+
+def _remember_finished(mem: Memory, events: list[Event]) -> None:
+    """Finished games into mem.recent (newest first, no duplicates) and out of mem.upcoming; mem.last is the newest."""
+    by_id = {e.id: e for e in mem.recent}
+    for e in events:
+        if e.finished_at is None:
+            e.finished_at = e.expected_end or e.start
+        by_id[e.id] = e
+    mem.recent = sorted(by_id.values(), key=lambda e: e.start or e.finished_at, reverse=True)[:KEEP_RECENT]
+    done = {e.id for e in mem.recent}
+    mem.upcoming = [e for e in mem.upcoming if e.id not in done]
+    if mem.recent and (mem.last is None or mem.last.id not in done or mem.last.id != mem.recent[0].id):
+        mem.last = mem.recent[0]
 
 
 def _live(mem: Memory, now: datetime) -> bool:
@@ -259,15 +283,18 @@ def absorb_lookup(mem: Memory, event: Event | None, now: datetime) -> None:
         return
     if event.cancelled:
         mem.tracked = None
+        mem.upcoming = [e for e in mem.upcoming if e.id != event.id]
         return
     if event.finished(now):
         end = event.expected_end
         event.finished_at = min(now, end) if end else now
+        _remember_finished(mem, [event])
         mem.last = event
         mem.tracked = None
     else:
         event.finished_at = None
         mem.tracked = event                  # keeps a moved kick-off, a status, premium live scores
+        mem.upcoming = [event if e.id == event.id else e for e in mem.upcoming] or [event]
 
 
 def needs_next(mem: Memory, now: datetime) -> bool:
@@ -281,22 +308,23 @@ def needs_next(mem: Memory, now: datetime) -> bool:
 
 def absorb_next(mem: Memory, events: list[Event], now: datetime) -> None:
     mem.checked_next = now
-    if _live(mem, now):
+    done = {e.id for e in mem.recent} | ({mem.last.id} if mem.last else set())
+    upcoming = sorted((e for e in events if e.start is not None and not e.cancelled and e.id not in done), key=lambda e: e.start)
+    if _live(mem, now):                      # the game in play stays first; the list behind it may still refresh
+        mem.upcoming = [mem.tracked] + [e for e in upcoming if e.id != mem.tracked.id]
         return
-    skip = {mem.last.id} if mem.last else set()
-    upcoming = sorted((e for e in events if e.start is not None and not e.cancelled and e.id not in skip), key=lambda e: e.start)
+    mem.upcoming = upcoming
     mem.tracked = upcoming[0] if upcoming else None
 
 
 def absorb_last(mem: Memory, events: list[Event], now: datetime) -> None:
-    """First run: the latest finished game TheSportsDB lists, so the sensor has a result from the start."""
+    """First run: the finished games TheSportsDB lists (home games on the free key), so the sensor has results from
+    the start."""
     mem.seeded = True
-    done = sorted((e for e in events if e.start is not None and e.finished(now)), key=lambda e: e.start, reverse=True)
-    if done and (mem.last is None or (mem.last.start or now) < (done[0].start or now)):
-        event = done[0]
-        event.finished_at = event.expected_end or event.start
-        mem.last = event
-        if mem.tracked is not None and mem.tracked.id == event.id:
+    done = [e for e in events if e.start is not None and e.finished(now)]
+    if done:
+        _remember_finished(mem, done)
+        if mem.tracked is not None and mem.tracked.id in {e.id for e in done}:
             mem.tracked = None
 
 
@@ -325,12 +353,20 @@ def _is_home(team: Team, game: Event) -> bool:
 
 
 def _brief(game: Event | None, now: datetime, to_local: ToLocal) -> dict[str, Any] | None:
+    """One game for the card: both sides with badges, where and when, the score once it is in."""
     if game is None:
         return None
-    return {"event_id": game.id, "name": game.name, "date": _iso(game.start),
-            "when": kickoff_text(to_local(game.start), to_local(now), game.time_known) if game.start else None,
-            "venue": game.venue, "home": game.home_name, "away": game.away_name,
-            "home_score": game.home_score, "away_score": game.away_score, "status": game.status}
+    local = to_local(game.start) if game.start else None
+    end = game.expected_end
+    finished = game.finished_at is not None or game.finished(now)
+    return {"event_id": game.id, "name": game.name, "date": _iso(game.start), "day": local.date().isoformat() if local else None,
+            "time": f"{local:%H:%M}" if local and game.time_known else None,
+            "when": kickoff_text(local, to_local(now), game.time_known) if local else None,
+            "venue": game.venue, "country": game.country, "league": game.league, "league_logo": game.league_badge,
+            "sport": game.sport, "home_id": game.home_id, "home": game.home_name, "home_badge": game.home_badge,
+            "away_id": game.away_id, "away": game.away_name, "away_badge": game.away_badge,
+            "home_score": game.home_score, "away_score": game.away_score, "status": game.status, "finished": finished,
+            "live": bool(game.start and not finished and now >= game.start and (end is None or now < end + timedelta(minutes=RESULT_WAIT_MINUTES)))}
 
 
 def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hours: int,
@@ -403,6 +439,9 @@ def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hour
         })
     attrs["next_game"] = _brief(tracked, now, loc) if state in (STATE_POST, STATE_NOT_FOUND) and tracked is not None and game is not tracked else None
     attrs["last_game"] = _brief(last, now, loc) if state in (STATE_PRE, STATE_IN, STATE_NOT_FOUND) and last is not None else None
+    # every game the integration knows, for a card that lays them out by day
+    attrs["fixtures"] = [_brief(e, now, loc) for e in mem.upcoming if e.start is not None]
+    attrs["results"] = [_brief(e, now, loc) for e in mem.recent]
     attrs["last_update"] = now.isoformat()
     attrs["attribution"] = ATTRIBUTION
     return state, attrs

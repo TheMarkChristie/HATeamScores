@@ -23,6 +23,10 @@ DEFAULT_PRE_HOURS = 6
 
 STORAGE_VERSION = 1
 
+# the Team Scores card, served by the integration from its www folder and registered as a dashboard resource
+URL_BASE = "/sportsdb_tracker"
+CARD_FILE = "team-scores-card.js"
+
 UPDATE_MINUTES_IDLE = 30                 # between checks of the next fixture
 UPDATE_MINUTES_LIVE = 10                 # while a game is on, or its result is awaited
 NEXT_CHECK_MINUTES = 30                  # re-read the next fixture this often (moved games, postponements)

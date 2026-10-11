@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.log
+tests/card_render.html
+tests/card_render.png

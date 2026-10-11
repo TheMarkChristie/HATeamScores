@@ -58,6 +58,8 @@ class ParseTests(unittest.TestCase):
         t = model.Team.parse(CLAN)
         self.assertEqual((t.id, t.sport, t.city), ("136520", "Ice Hockey", "Glasgow"))
         self.assertEqual(t.abbr, "GC")
+        city = model.Team.parse({"idTeam": "133613", "strTeam": "Manchester City", "strTeamShort": "MCI", "strSport": "Soccer"})
+        self.assertEqual(city.abbr, model.abbreviation("Manchester City"), "our side and the opponent's side must agree")
         self.assertEqual(model.abbreviation("Liverpool"), "LIV")
         self.assertEqual(model.abbreviation("Seattle Sounders FC"), "SS")
         self.assertEqual(model.abbreviation("St Johnstone"), "SJ")
@@ -121,6 +123,12 @@ class LifecycleTests(unittest.TestCase):
         state, a = self.show(now)
         self.assertEqual(state, "POST", "the result stays for 24 hours")
         self.assertEqual(a["next_game"]["name"], "Fife Flyers vs Glasgow Clan")
+        # the lists for the card: both results newest first, the one coming fixture
+        self.assertEqual([r["name"] for r in a["results"]], ["Glasgow Clan vs Guildford Flames", "Manchester Storm vs Glasgow Clan"])
+        self.assertEqual([f["name"] for f in a["fixtures"]], ["Fife Flyers vs Glasgow Clan"])
+        self.assertEqual((a["results"][0]["finished"], a["results"][0]["home_score"], a["results"][0]["day"], a["results"][0]["time"]),
+                         (True, 4, "2026-10-11", "15:00"))
+        self.assertEqual((a["fixtures"][0]["finished"], a["fixtures"][0]["live"], a["fixtures"][0]["home_badge"]), (False, False, None))
         # a day later the next fixture takes over
         now = T("2026-10-12T18:00:00")
         state, a = self.show(now)

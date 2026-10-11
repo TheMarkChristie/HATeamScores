@@ -26,10 +26,8 @@ the clock says it is over, then the result once TheSportsDB posts it (usually wi
 3. Search HACS for **TheSportsDB Tracker** and select **Download**.
 4. Restart Home Assistant (**Settings > System**, then the power button at the top right, **Restart Home Assistant**).
 
-To see the sensors as a scoreboard, also install the card:
-
-5. In HACS, search for **TeamTracker Scoreboard Card** and select **Download**. HACS registers the card's resource
-   itself. Reload the browser once (or the Companion app) after installing it.
+The Team Scores card comes with the integration and is registered with your dashboards at that restart; nothing
+else to install.
 
 ## Add a team
 
@@ -60,38 +58,55 @@ Open **Settings > Devices & services > TheSportsDB Tracker**, find the team and 
 | Show a result for (hours) | 24 | After full time the result stays on the sensor this long, then the next fixture shows. |
 | Show the next fixture from (hours before kick-off) | 6 | The next fixture takes over this long before its kick-off, even if the result is still within its hours. |
 
-## The scoreboard
+## The Team Scores card
 
-Add the card to a dashboard: **Edit dashboard > Add card > Manual**, paste this, and change the sections to the
-sports you track. Every section lists the sensors whose entity id starts with its prefix.
+The integration brings its own card and registers it with your dashboards, so there is nothing more to install.
+It lists every tracked team's games by day: yesterday's results, today, then the fixtures of the next two weeks.
+Each row has the time, the two teams with their badges (your teams in bold), the score once it is in, and the venue
+and competition underneath. It is laid out for a phone first.
+
+Add it to a dashboard: **Edit dashboard > Add card**, search for **Team Scores**, or use **Manual** and paste:
+
+```yaml
+type: custom:team-scores-card
+title: Scores
+days_ahead: 14
+results_days: 1
+```
+
+| Option | Default | What it does |
+|---|---|---|
+| `title` | none | A heading on the card |
+| `days_ahead` | 14 | Fixtures up to this many days ahead |
+| `results_days` | 1 | Results from this many days back (1 is yesterday and today) |
+| `prefixes` | all teams | Only sensors whose id starts with one of these, for example `[sensor.football_]` for one sport |
+| `entities` | all teams | Or an explicit list of sensors |
+| `show_venue` | true | The venue under each row |
+| `show_league` | true | The competition under each row |
+
+A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
+your teams play (Liverpool v Manchester City) appears once.
+
+On the free key TheSportsDB lists one coming fixture per team, so the two weeks ahead hold each team's next game.
+With a premium key the list fills with everything TheSportsDB has scheduled.
+
+### Grouped by sport instead
+
+The sensors also work with the [TeamTracker Scoreboard Card](https://github.com/marcintk/ha-teamtracker-scoreboard-card)
+(installed separately through HACS), which groups by sections of sensors:
 
 ```yaml
 type: custom:ha-teamtracker-scoreboard-card
 name_format: name
-live_first: true
-tv_badge: 0
 sections:
   - name: Football
     prefix: sensor.football_
-    limit: 20
   - name: Ice Hockey
     prefix: sensor.ice_hockey_
-    limit: 20
-  - name: American Football
-    prefix: sensor.american_football_
-    limit: 20
-  - name: Basketball
-    prefix: sensor.basketball_
-    limit: 20
 ```
 
-Each row shows the two teams with their logos. Before the game it shows the kick-off (`Today 15:00`,
-`Sat 18 Oct 19:30`) and the venue; during the game, `In play`; afterwards, the score and `Full Time`. A result with
-nothing coming up shows its date (`FT 24 Sep`).
-
-The prefixes are: `football_` for soccer, `ice_hockey_`, `american_football_`, `basketball_`, and the sport's name in
-lower case with underscores for the rest (`rugby_`, `field_hockey_`). The card's other options (colours, layout,
-slide mode) are in its [README](https://github.com/marcintk/ha-teamtracker-scoreboard-card).
+The prefixes are `football_` for soccer, `ice_hockey_`, `american_football_`, `basketball_`, and the sport's name in
+lower case with underscores for the rest (`rugby_`, `field_hockey_`).
 
 ## The sensor
 
@@ -108,8 +123,9 @@ nothing for the team, for example in the off-season).
 | `clock` | `In play`, `Awaiting result`, `FT`, or `FT 24 Sep` for an old result |
 | `league`, `league_logo`, `season`, `round`, `sport` | The competition |
 | `event_name`, `event_id`, `event_url`, `video` | The game on TheSportsDB, and its highlights link when there is one |
-| `next_game` | While a result shows: the next fixture (`name`, `date`, `when`, `venue`, `home`, `away`) |
-| `last_game` | While a fixture shows: the last result (`name`, `date`, `venue`, `home_score`, `away_score`) |
+| `fixtures` | Every coming game TheSportsDB lists, soonest first, each with `date`, `time`, `venue`, `league`, `home`, `away`, their badges and ids |
+| `results` | The finished games the integration has seen, latest first, in the same shape with the scores and `finished: true` |
+| `next_game`, `last_game` | The single game on the other side of the one shown, in the same shape |
 
 `team_record`, `tv_network`, `odds`, `last_play` and `series_summary` are present for the card and always empty:
 TheSportsDB does not carry them.
