@@ -27,6 +27,7 @@ def main():
 --secondary-background-color:#2b2b2b}} ha-card{{display:block;background:#1c1c1c;border-radius:12px;margin:8px}}
 #err{{color:#f66;white-space:pre-wrap;padding:8px}}</style></head><body><div id="err"></div>
 <script>window.onerror=function(m,s,l){{document.getElementById('err').textContent+=m+' @'+l+'\\n'}}</script>
+<script>customElements.define("home-assistant", class extends HTMLElement {{}});</script>
 <script>{open(CARD, encoding="utf-8").read()}</script>
 <script>
 const states={json.dumps(states)};

@@ -220,9 +220,23 @@
     }
   }
 
-  if (!customElements.get("team-scores-card")) customElements.define("team-scores-card", TeamScoresCard);
-  window.customCards = window.customCards || [];
-  if (!window.customCards.some((c) => c.type === "team-scores-card"))
-    window.customCards.push({ type: "team-scores-card", name: "Team Scores", preview: true,
-      description: "Yesterday's results and the coming fixtures of your TheSportsDB Tracker teams, by day." });
+  /* Home Assistant's frontend replaces the custom element registry's methods as it starts (its scoped-registry
+   * polyfill keeps its own table), so an element defined before that point is reported as not existing afterwards.
+   * This file is imported by the page alongside the frontend itself, so it can run first: register once the frontend's
+   * root element is known, which is immediate when the file arrives as a dashboard resource. */
+  function whenFrontendReady(fn) {
+    const ready = () => !!customElements.get("home-assistant");
+    if (ready()) { fn(); return; }
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (ready() || ++tries > 600) { clearInterval(timer); fn(); }
+    }, 50);
+  }
+  whenFrontendReady(() => {
+    if (!customElements.get("team-scores-card")) customElements.define("team-scores-card", TeamScoresCard);
+    window.customCards = window.customCards || [];
+    if (!window.customCards.some((c) => c.type === "team-scores-card"))
+      window.customCards.push({ type: "team-scores-card", name: "Team Scores", preview: true,
+        description: "Yesterday's results and the coming fixtures of your TheSportsDB Tracker teams, by day." });
+  });
 })();
