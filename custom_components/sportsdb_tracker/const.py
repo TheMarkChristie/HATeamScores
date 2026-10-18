@@ -46,7 +46,9 @@ HIGHLIGHTS_RECHECK_HOURS = 2             # a game without highlights yet is aske
 
 # Channels a game gets when the guides and TheSportsDB find none for that country. Mark, 18 Oct 2026: "by default have
 # all Norwegian ice hockey and football elite games on TV2" (TV 2 holds both; most Eliteserien games are on TV 2 Play
-# only, so no guide lists them). Matched by TheSportsDB league id, or by the league's name if an event has no id.
+# only, so no guide lists them). Matched by TheSportsDB league id, or by the league's name if an event has no id; a row
+# with a team_id is a team's usual channel instead, for every game it plays, or only its home games (side: home), and
+# only_if_none adds it only when no channel at all was found for the game (a club's own stream of the untelevised ones).
 DEFAULT_TV = [
     {"league_id": "4358", "league": "Norwegian Eliteserien", "country": "NO", "channel": "TV 2"},
     {"league_id": "4926", "league": "Norwegian Fjordkraft-ligaen", "country": "NO", "channel": "TV 2"},
@@ -55,6 +57,15 @@ DEFAULT_TV = [
     {"league_id": "4431", "league": "British Super League Basketball", "country": "NO", "channel": "DAZN"},
     {"league_id": "5127", "league": "British Super League Basketball Women", "country": "UK", "channel": "DAZN"},
     {"league_id": "5127", "league": "British Super League Basketball Women", "country": "NO", "channel": "DAZN"},
+    # Mark, 18 Oct 2026: "Valencia are on EurosBasket TV" (EuroLeague TV, the EuroLeague's own service), Liga ACB and EuroLeague
+    {"team_id": "135097", "team": "Valencia Basket", "country": "UK", "channel": "EuroLeague TV"},
+    {"team_id": "135097", "team": "Valencia Basket", "country": "NO", "channel": "EuroLeague TV"},
+    # Mark, 18 Oct 2026: "if Glasgow Clan are playing at home its on Clan TV and if St Johnstone are not on TV its on
+    # StJohnstone TV"
+    {"team_id": "136520", "team": "Glasgow Clan", "side": "home", "country": "UK", "channel": "Clan TV"},
+    {"team_id": "136520", "team": "Glasgow Clan", "side": "home", "country": "NO", "channel": "Clan TV"},
+    {"team_id": "133639", "team": "St Johnstone", "only_if_none": True, "country": "UK", "channel": "St Johnstone TV"},
+    {"team_id": "133639", "team": "St Johnstone", "only_if_none": True, "country": "NO", "channel": "St Johnstone TV"},
 ]
 
 # the Team Scores card, served by the integration from its www folder and registered as a dashboard resource

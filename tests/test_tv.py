@@ -188,6 +188,36 @@ class LeagueDefaults(unittest.TestCase):
                               {"channel": "DAZN", "country": "NO", "source": "default"}], name)
             self.assertEqual(len(tv.with_defaults([], None, name, const.DEFAULT_TV)), 2, "by name")
 
+    def test_valencia_is_on_euroleague_tv_home_or_away_in_any_competition(self):
+        euroleague_tv = [{"channel": "EuroLeague TV", "country": "UK", "source": "default"},
+                         {"channel": "EuroLeague TV", "country": "NO", "source": "default"}]
+        self.assertEqual(tv.with_defaults([], "4408", "Spanish Liga ACB", const.DEFAULT_TV, ("135097", "134993")), euroleague_tv)
+        self.assertEqual(tv.with_defaults([], "4546", "EuroLeague Basketball", const.DEFAULT_TV, ("135000", "135097")), euroleague_tv)
+        self.assertEqual(tv.with_defaults([], "4408", "Spanish Liga ACB", const.DEFAULT_TV, ("134993", "135000")), [],
+                         "another ACB game")
+        self.assertEqual(tv.with_defaults([], "4408", "Spanish Liga ACB", const.DEFAULT_TV), [], "no teams given")
+
+    def test_clan_tv_for_glasgow_clan_home_games_only(self):
+        home = tv.with_defaults([], "4381", "UK Elite Ice Hockey League", const.DEFAULT_TV, ("136520", "136530"))
+        self.assertEqual([(i["country"], i["channel"]) for i in home], [("UK", "Clan TV"), ("NO", "Clan TV")])
+        self.assertEqual(tv.with_defaults([], "4381", "UK Elite Ice Hockey League", const.DEFAULT_TV, ("136519", "136520")), [],
+                         "away at Fife")
+        on_tv = [{"channel": "Premier Sports 1", "country": "UK", "source": "guide"}]
+        self.assertEqual([(i["country"], i["channel"]) for i in
+                          tv.with_defaults(on_tv, "4381", None, const.DEFAULT_TV, ("136520", "136530"))],
+                         [("UK", "Premier Sports 1"), ("NO", "Clan TV")], "the guide's UK channel wins")
+
+    def test_st_johnstone_tv_only_when_the_game_is_on_no_channel(self):
+        saints = ("133639", "133604")
+        self.assertEqual([(i["country"], i["channel"]) for i in
+                          tv.with_defaults([], "4330", "Scottish Premier League", const.DEFAULT_TV, saints)],
+                         [("UK", "St Johnstone TV"), ("NO", "St Johnstone TV")])
+        self.assertEqual([(i["country"], i["channel"]) for i in
+                          tv.with_defaults([], "4330", None, const.DEFAULT_TV, saints[::-1])],
+                         [("UK", "St Johnstone TV"), ("NO", "St Johnstone TV")], "away as well")
+        sky = [{"channel": "Sky Sports Main Event", "country": "UK", "source": "guide"}]
+        self.assertEqual(tv.with_defaults(sky, "4330", None, const.DEFAULT_TV, saints), sky, "on TV: no club stream")
+
     def test_other_leagues_are_left_alone(self):
         self.assertEqual(tv.with_defaults([], "4328", "English Premier League", self.DEFAULTS), [])
         self.assertEqual(tv.with_defaults([], "4380", "Norwegian 1. Divisjon", self.DEFAULTS), [])

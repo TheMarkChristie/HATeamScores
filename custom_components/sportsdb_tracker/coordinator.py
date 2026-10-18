@@ -166,7 +166,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
                     mem.tv_checked[e.id] = now.isoformat()
                 except SportsDBError as err:
                     _LOGGER.debug("%s: broadcasters of %s not read: %s", self.name, e.id, err)
-            mem.tv[e.id] = with_defaults(merge(found, sportsdb), e.league_id, e.league, DEFAULT_TV)
+            mem.tv[e.id] = with_defaults(merge(found, sportsdb), e.league_id, e.league, DEFAULT_TV, (e.home_id, e.away_id))
         keep = {e.id for e in mem.upcoming}
         mem.tv = {k: v for k, v in mem.tv.items() if k in keep}
         mem.tv_checked = {k: v for k, v in mem.tv_checked.items() if k in keep}

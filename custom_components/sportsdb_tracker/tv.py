@@ -321,14 +321,24 @@ def merge(*lists: Iterable[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def with_defaults(listings: list[dict[str, str]], league_id: str | None, league: str | None,
-                  defaults: Iterable[dict[str, str]]) -> list[dict[str, str]]:
-    """A league's usual channel for a country (Eliteserien: TV 2 in Norway), added only when nothing was found for
-    that country: a channel the guide names for the game (TV 2 Sport 1) is more exact and wins."""
+                  defaults: Iterable[dict[str, Any]], team_ids: Iterable[str | None] = ()) -> list[dict[str, str]]:
+    """A league's usual channel for a country (Eliteserien: TV 2 in Norway), or a team's (a row with a team_id: either
+    side of the game, or with side "home" only its home games; `team_ids` is home then away), added only when nothing
+    was found for that country: a channel the guide names for the game (TV 2 Sport 1) is more exact and wins. A row
+    with only_if_none is added only when nothing was found for the game at all."""
     out = list(listings)
     have = {i["country"] for i in out}
+    anything = bool(out)
     name = (league or "").strip().lower()
+    ids = [str(t or "") for t in team_ids]
+    teams = {t for t in ids if t}
     for d in defaults:
-        hit = (league_id and str(d.get("league_id") or "") == str(league_id)) or (name and str(d.get("league") or "").strip().lower() == name)
+        if d.get("team_id"):
+            hit = str(d["team_id"]) == ids[0] if d.get("side") == "home" and ids else str(d["team_id"]) in teams
+        else:
+            hit = (league_id and str(d.get("league_id") or "") == str(league_id)) or (name and str(d.get("league") or "").strip().lower() == name)
+        if d.get("only_if_none") and anything:
+            continue
         if hit and d["country"] not in have:
             out.append({"channel": d["channel"], "country": d["country"], "source": "default"})
             have.add(d["country"])
@@ -367,7 +377,8 @@ def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], d
             continue
         h, a = pair_needles(home, away, e.get("strSport"))
         window = [p for p in todays if start - STARTS_FROM <= p.start <= start + STARTS_BY]
-        found = with_defaults(guide_listings(start, h, a, window), e.get("idLeague"), e.get("strLeague"), defaults)
+        found = with_defaults(guide_listings(start, h, a, window), e.get("idLeague"), e.get("strLeague"), defaults,
+                              (e.get("idHomeTeam"), e.get("idAwayTeam")))
         if found:
             out.append({"event_id": eid, "date": start.isoformat(), "sport": e.get("strSport"), "league": e.get("strLeague"),
                         "league_logo": e.get("strLeagueBadge"), "home": home, "away": away, "home_id": e.get("idHomeTeam"),
