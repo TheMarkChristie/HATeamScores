@@ -34,18 +34,20 @@
   const CSS = `
     :host { display: block; }
     ha-card { padding: 4px 0 10px; container-type: inline-size; }
-    .days.columns { display: block; }
+    /* every day is its own panel with a gap between, so the days stand apart on a phone as well */
+    .days { display: flex; flex-direction: column; gap: 12px; padding: 6px 8px 0; }
+    .dayblock { min-width: 0; border-radius: 12px; padding-bottom: 4px;
+                background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
     /* wide enough for two days side by side: each day becomes its own column */
     @container (min-width: 620px) {
       .days.columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tsc-day-width, 300px), 1fr));
                       gap: 10px; padding: 6px 10px 0; align-items: start; }
-      .days.columns .dayblock { min-width: 0; border-radius: 12px; padding-bottom: 4px;
-                                background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
-      .days.columns .day { padding-top: 10px; }
     }
     .head { padding: 12px 16px 4px; font-size: 1.15em; font-weight: 500; color: var(--primary-text-color); }
-    .day { padding: 12px 16px 4px; font-size: 0.78em; letter-spacing: 0.06em; text-transform: uppercase;
-           color: var(--secondary-text-color); }
+    .day { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 8px; padding: 11px 14px 7px 16px;
+           font-size: 0.8em; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary-text-color);
+           border-bottom: 1px solid var(--divider-color, rgba(127,127,127,0.2)); }
+    .day .date { font-weight: 400; letter-spacing: 0.03em; color: var(--secondary-text-color); }
     .row { display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto; column-gap: 8px; row-gap: 3px;
            grid-template-areas: "time home hs" "time away as" "time sub sub" "time tv tv" "detail detail detail"; align-items: center;
            padding: 8px 14px 8px 16px; border-top: 1px solid var(--divider-color, rgba(127,127,127,0.2));
@@ -167,6 +169,19 @@
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   }
 
+  /* redraw the card without moving the page: the scroll position of every scrolling parent (through Home Assistant's
+     shadow roots) and of the window is put back afterwards */
+  function keepScroll(el, draw) {
+    const saved = [];
+    for (let n = el.parentNode || el.host; n; n = n.parentNode || n.host) {
+      if (n.scrollTop > 0) saved.push([n, n.scrollTop]);
+    }
+    const x = window.scrollX, y = window.scrollY;
+    draw();
+    for (const [n, top] of saved) if (n.scrollTop !== top) n.scrollTop = top;
+    if (window.scrollY !== y) window.scrollTo(x, y);
+  }
+
   class TeamScoresCard extends HTMLElement {
     static getStubConfig() {
       return { title: "Scores", days_ahead: 14, results_days: 1 };
@@ -175,12 +190,11 @@
     constructor() {
       super();
       this._open = new Set();
+      this._rowArgs = new Map();
       const toggle = (row) => {
         const key = row.dataset.ev;
         if (this._open.has(key)) this._open.delete(key); else this._open.add(key);
-        this._sig = null;
-        this._render();
-        const again = [...this.querySelectorAll(".row.click")].find((r) => r.dataset.ev === key);
+        const again = this._redrawRow(key);
         const marker = again && again.querySelector(".more");
         if (marker) marker.focus({ preventScroll: true });
       };
@@ -243,19 +257,19 @@
     _askDevice(key, channel, cc) {
       const app = this._appFor(channel, cc);
       if (!app) return;
+      const before = this._launch && this._launch.key;
       this._launch = { key, channel, app, msg: "" };
-      this._sig = null;
-      this._render();
-      const first = this.querySelector(".launch .dev:not([disabled])") || this.querySelector(".launch .cancel");
+      if (before && before !== key) this._redrawRow(before);
+      const row = this._redrawRow(key);
+      const first = row && (row.querySelector(".launch .dev:not([disabled])") || row.querySelector(".launch .cancel"));
       if (first) first.focus({ preventScroll: true });
     }
 
     _closeLaunch() {
       const key = this._launch && this._launch.key;
       this._launch = null;
-      this._sig = null;
-      this._render();
-      const ch = key && [...this.querySelectorAll(".ch")].find((b) => b.dataset.ev === key);
+      const row = key && this._redrawRow(key);
+      const ch = row && row.querySelector(".ch");
       if (ch) ch.focus({ preventScroll: true });
     }
 
@@ -270,9 +284,8 @@
       } catch (err) {
         l.msg = `${l.app.name} could not be opened: ${(err && err.message) || err}`;
       }
-      this._sig = null;
-      this._render();
-      const msg = this.querySelector(".launch .msg");
+      const row = this._redrawRow(l.key);
+      const msg = row && row.querySelector(".launch .msg");
       if (msg) msg.focus({ preventScroll: true });
     }
 
@@ -429,6 +442,7 @@
         "#" + this._mode + (this._tvLoading ? "L" : "");
       if (sig === this._sig) return;
       this._sig = sig;
+      this._rowArgs = new Map();
 
       const fmt = this._fmt();
       const now = Date.now();
@@ -459,14 +473,14 @@
         byDay.get(r.key).push(r);
       }
 
-      let html = `<style>${CSS}</style><ha-card>`;
+      let html = "";
       const button = this._config.show_tv_button
         ? `<button class="tvbtn" aria-pressed="${this._mode === "tv"}" title="Every game on UK or Norwegian TV today">` +
           `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>` +
           `${this._mode === "tv" ? "Back to scores" : "On TV today"}</button>` : "";
       if (this._config.title || button) html += `<div class="bar">${this._config.title ? `<div class="head">${esc(this._config.title)}</div>` : ""}${button}</div>`;
       if (this._mode === "tv") {
-        this.innerHTML = html + this._tvView(mine, fmt) + `</ha-card>`;
+        this._paint(html + this._tvView(mine, fmt));
         return;
       }
       if (!rows.length) html += `<div class="empty">No games in the next ${this._config.days_ahead} days.</div>`;
@@ -474,13 +488,43 @@
       const width = Math.max(220, Number(this._config.day_width) || 300);
       html += `<div class="days${columns ? " columns" : ""}" style="--tsc-day-width:${width}px">`;
       for (const [key, list] of byDay) {
-        const label = key === todayKey ? "Today" : key === yesterdayKey ? "Yesterday" : key === tomorrowKey ? "Tomorrow" : fmt.head.format(list[0].t);
-        html += `<section class="dayblock"><div class="day">${esc(label)}</div>`;
+        const named = key === todayKey ? "Today" : key === yesterdayKey ? "Yesterday" : key === tomorrowKey ? "Tomorrow" : "";
+        const date = fmt.head.format(list[0].t);
+        html += `<section class="dayblock"><div class="day" role="heading" aria-level="3">` +
+          (named ? `${esc(named)}<span class="date">${esc(date)}</span>` : esc(date)) + `</div>`;
         list.forEach((r, i) => { html += this._row(r.g, r.t, mine, fmt, i === 0); });
         html += `</section>`;
       }
-      html += `</div></ha-card>`;
-      this.innerHTML = html;
+      html += `</div>`;
+      this._paint(html);
+    }
+
+    /* the card's content into one ha-card that is kept for good. A new ha-card draws its frame a moment after it is
+       created and is empty until then: replacing it on every redraw let the page shrink for that moment, and a phone
+       scrolled back to the top (Mark, 18 Oct 2026: "it should also not scroll to the top when i open up scorers") */
+    _paint(inner) {
+      if (!this._card || this._card.parentNode !== this) {
+        this.innerHTML = `<style>${CSS}</style><ha-card></ha-card>`;
+        this._card = this.querySelector("ha-card");
+      }
+      keepScroll(this, () => { this._card.innerHTML = inner; });
+    }
+
+    /* one game drawn again in place (opened, closed, asked for a device): the rest of the card is left as it is, so
+       the page does not move */
+    _redrawRow(key) {
+      const args = this._rowArgs.get(key);
+      const el = [...this.querySelectorAll(".row")].find((r) => r.dataset.ev === key);
+      if (!args || !el) {
+        this._sig = null;
+        this._render();
+        return [...this.querySelectorAll(".row")].find((r) => r.dataset.ev === key);
+      }
+      const tmp = document.createElement("div");
+      tmp.innerHTML = this._row(...args);
+      const fresh = tmp.firstElementChild;
+      el.replaceWith(fresh);
+      return fresh;
     }
 
     /* two lines, home over away, each with its badge, name and score; the time (or FT, LIVE) on the left */
@@ -505,6 +549,7 @@
         ? `<img class="lg" src="${esc(tiny(g.league_logo))}" alt="${this._config.show_league ? "" : esc(g.league || "")}"` +
           ` title="${esc(g.league || "")}" loading="lazy">` : "";
       const key = String(g.event_id || (g.name || "") + g.date);
+      this._rowArgs.set(key, [g, t, mine, fmt, first]);       // so the row can be drawn again on its own
       const goals = this._config.show_goals && Array.isArray(g.goals) ? g.goals : [];
       const open = this._open.has(key);
       const word = goals.length ? (g.sport === "American Football" ? "Scoring" : "Goals") : "Details";
