@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import SportsDBClient, SportsDBError
+from .espn import EspnClient, EspnError, get_espn
 from .guide import get_guide
 from .const import (
     CONF_API_KEY,
@@ -25,6 +26,8 @@ from .const import (
     DEFAULT_PRE_HOURS,
     DEFAULT_RESULTS_HOURS,
     DEFAULT_TV,
+    SCORERS_DAYS,
+    SCORERS_RECHECK_MINUTES,
     DOMAIN,
     STORAGE_VERSION,
     SPORTSDB_TV_HOURS,
@@ -33,6 +36,7 @@ from .const import (
     UPDATE_MINUTES_LIVE,
 )
 from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
+from .scorers import SCORER_SPORTS, espn_slug, find_espn_event, parse_espn_summary, scoreboard_dates, timeline_goals
 from .tv import guide_listings, merge, sportsdb_listings, team_needles, with_defaults
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,6 +114,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
             _LOGGER.warning("%s: TheSportsDB: %s (keeping the last known fixtures)", self.name, err)
             failed = True
         await self._update_tv(mem, now, key)
+        await self._update_scorers(mem, now, key)
         data = {"memory": mem.to_dict(), "team": self.team.to_dict()}
         if data != self._saved:
             await self._store.async_save(data)
@@ -153,6 +158,61 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         keep = {e.id for e in mem.upcoming}
         mem.tv = {k: v for k, v in mem.tv.items() if k in keep}
         mem.tv_checked = {k: v for k, v in mem.tv_checked.items() if k in keep}
+
+    async def _update_scorers(self, mem: Memory, now: datetime, key: str) -> None:
+        """Who scored in the team's games of the last few days and in the game in play: ESPN first, TheSportsDB's
+        timeline for a football game ESPN does not cover. A game is asked again while its goals are not final (every
+        update while it is on, every SCORERS_RECHECK_MINUTES after), and never during Home Assistant's start-up."""
+        if self.data is None:
+            return
+        live_id = mem.tracked.id if mem.tracked is not None and mem.tracked.start is not None and now >= mem.tracked.start else None
+        games = [e for e in mem.recent if e.start is not None and now - e.start <= timedelta(days=SCORERS_DAYS)]
+        if live_id:
+            games.append(mem.tracked)
+        espn = get_espn(self.hass)
+        for e in games:
+            if e.sport not in SCORER_SPORTS:
+                continue
+            have = mem.scorers.get(e.id)
+            if have:
+                settled = have.get("final") and (have.get("complete", True) or now - e.start > timedelta(hours=12))
+                if settled and e.id != live_id:
+                    continue
+                checked = datetime.fromisoformat(have["checked"]) if have.get("checked") else None
+                if e.id != live_id and checked and now - checked < timedelta(minutes=SCORERS_RECHECK_MINUTES):
+                    continue
+            got = await self._espn_goals(espn, e, now)
+            if got is None and e.sport == "Soccer" and e.id != live_id:
+                try:
+                    goals, complete = timeline_goals(await self.client.lookup_timeline(key, e.id), e.home_score, e.away_score)
+                    got = {"goals": goals, "final": True, "complete": complete, "source": "thesportsdb"}
+                except SportsDBError as err:
+                    _LOGGER.debug("%s: timeline of %s not read: %s", self.name, e.id, err)
+            if got is None:
+                got = {"goals": (have or {}).get("goals") or [], "final": now - e.start > timedelta(hours=12),
+                       "complete": (have or {}).get("complete", True), "source": (have or {}).get("source", "none")}
+            got["checked"] = now.isoformat()
+            mem.scorers[e.id] = got
+        keep = {e.id for e in mem.recent} | {e.id for e in mem.upcoming}
+        mem.scorers = {k: v for k, v in mem.scorers.items() if k in keep}
+
+    async def _espn_goals(self, espn: EspnClient, e: Event, now: datetime) -> dict | None:
+        slug = espn_slug(e.league_id, e.league)
+        if not slug or e.start is None:
+            return None
+        try:
+            event_id = None
+            for day in scoreboard_dates(e.start):
+                event_id = find_espn_event(await espn.scoreboard(slug, day), e.start, e.home_name, e.away_name, e.sport)
+                if event_id:
+                    break
+            if not event_id:
+                return None
+            goals, final = parse_espn_summary(await espn.summary(slug, event_id, e.finished(now)), e.sport)
+        except EspnError as err:
+            _LOGGER.debug("%s: ESPN has no scorers for %s: %s", self.name, e.id, err)
+            return None
+        return {"goals": goals, "final": final, "complete": True, "source": "espn"}
 
     def _interval(self, mem: Memory, now) -> timedelta:
         tracked = mem.tracked

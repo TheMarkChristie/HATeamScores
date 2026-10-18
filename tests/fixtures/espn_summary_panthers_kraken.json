@@ -1,0 +1,325 @@
+{
+ "header": {
+  "competitions": [
+   {
+    "status": {
+     "type": {
+      "completed": true
+     }
+    },
+    "competitors": [
+     {
+      "homeAway": "home",
+      "team": {
+       "id": "26",
+       "displayName": "Florida Panthers"
+      }
+     },
+     {
+      "homeAway": "away",
+      "team": {
+       "id": "124292",
+       "displayName": "Seattle Kraken"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "plays": [
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "1:05"
+   },
+   "period": {
+    "number": 1
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Sam Bennett"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Matthew Tkachuk"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "4:54"
+   },
+   "period": {
+    "number": 1
+   },
+   "team": {
+    "id": "124292"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Shane Wright"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Berkly Catton"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Kaapo Kakko"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "17:56"
+   },
+   "period": {
+    "number": 1
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Carter Verhaeghe"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Sam Reinhart"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "19:07"
+   },
+   "period": {
+    "number": 1
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Carter Verhaeghe"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Brady Tkachuk"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Matthew Tkachuk"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "6:02"
+   },
+   "period": {
+    "number": 2
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Carter Verhaeghe"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Niko Mikkola"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Lars Eller"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "6:42"
+   },
+   "period": {
+    "number": 2
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Niko Mikkola"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "13:13"
+   },
+   "period": {
+    "number": 2
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Sam Bennett"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Brady Tkachuk"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Gustav Forsling"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "19:05"
+   },
+   "period": {
+    "number": 2
+   },
+   "team": {
+    "id": "124292"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Frederick Gaudreau"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Adam Larsson"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "2:25"
+   },
+   "period": {
+    "number": 3
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Sam Reinhart"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Matthew Tkachuk"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Seth Jones"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "3:49"
+   },
+   "period": {
+    "number": 3
+   },
+   "team": {
+    "id": "124292"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Ryker Evans"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Berkly Catton"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Kaapo Kakko"
+     }
+    }
+   ]
+  },
+  {
+   "scoringPlay": true,
+   "clock": {
+    "displayValue": "11:14"
+   },
+   "period": {
+    "number": 3
+   },
+   "team": {
+    "id": "26"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Sam Bennett"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Uvis Balinskis"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Dmitry Kulikov"
+     }
+    }
+   ]
+  }
+ ]
+}

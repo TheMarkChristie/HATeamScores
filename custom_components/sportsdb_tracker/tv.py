@@ -283,7 +283,7 @@ def sportsdb_listings(rows: Iterable[dict[str, Any]]) -> list[dict[str, str]]:
     for r in rows or []:
         country = COUNTRY_LABEL.get(str(r.get("strCountry") or "").strip())
         channel = str(r.get("strChannel") or "").strip()
-        if country and channel:
+        if country and channel and not re.search(r"\b(ultimate|ultra hd|uhd|4k)\b", channel, re.I):   # 4K copies, as in the guides
             channel = re.sub(r"\s+(UK|Norway|Norge)$", "", channel)
             out.append({"channel": channel, "country": country, "source": "thesportsdb"})
     return out

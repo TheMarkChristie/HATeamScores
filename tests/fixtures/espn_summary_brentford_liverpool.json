@@ -1,0 +1,942 @@
+{
+ "header": {
+  "competitions": [
+   {
+    "status": {
+     "type": {
+      "completed": true
+     }
+    },
+    "competitors": [
+     {
+      "homeAway": "home",
+      "team": {
+       "id": "337",
+       "displayName": "Brentford"
+      }
+     },
+     {
+      "homeAway": "away",
+      "team": {
+       "id": "364",
+       "displayName": "Liverpool"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "keyEvents": [
+  {
+   "type": {
+    "id": "80",
+    "text": "Kickoff",
+    "type": "kickoff"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 0.0,
+    "displayValue": ""
+   },
+   "team": {
+    "id": null
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1427.0,
+    "displayValue": "24'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1427.0,
+    "displayValue": "24'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1546.0,
+    "displayValue": "26'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1546.0,
+    "displayValue": "26'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1819.0,
+    "displayValue": "31'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Bradley Barcola"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1850.0,
+    "displayValue": "31'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1850.0,
+    "displayValue": "31'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1900.0,
+    "displayValue": "32'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1900.0,
+    "displayValue": "32'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 1903.0,
+    "displayValue": "32'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Trey Nyoni"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Dominik Szoboszlai"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2452.0,
+    "displayValue": "41'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2508.0,
+    "displayValue": "42'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "137",
+    "text": "Goal - Header",
+    "type": "goal---header"
+   },
+   "scoringPlay": true,
+   "clock": {
+    "value": 2625.0,
+    "displayValue": "44'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Keane Lewis-Potter"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Igor Thiago"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'+5'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'+8'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "93",
+    "text": "Red Card",
+    "type": "red-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'+8'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Yehor Yarmoliuk"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "81",
+    "text": "Halftime",
+    "type": "halftime"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'+11'"
+   },
+   "team": {
+    "id": null
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Jeremie Frimpong"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Ronald Araújo"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Kevin Schade"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Dango Ouattara"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Mamadou Sangare"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Mathias Jensen"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "82",
+    "text": "Start 2nd Half",
+    "type": "start-2nd-half"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2700.0,
+    "displayValue": "45'"
+   },
+   "team": {
+    "id": null
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2712.0,
+    "displayValue": "46'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Igor Thiago"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 2937.0,
+    "displayValue": "49'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Jérémy Jacquet"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3026.0,
+    "displayValue": "51'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3026.0,
+    "displayValue": "51'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3095.0,
+    "displayValue": "52'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3095.0,
+    "displayValue": "52'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3098.0,
+    "displayValue": "52'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Rio Ngumoha"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Jeremie Frimpong"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3178.0,
+    "displayValue": "53'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Alexis Mac Allister"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3582.0,
+    "displayValue": "60'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "129",
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3582.0,
+    "displayValue": "60'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3586.0,
+    "displayValue": "60'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Kevin Schade"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3626.0,
+    "displayValue": "61'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "130",
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3626.0,
+    "displayValue": "61'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "scoringPlay": true,
+   "clock": {
+    "value": 3672.0,
+    "displayValue": "62'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Víctor Muñoz"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Florian Wirtz"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 3745.0,
+    "displayValue": "63'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Vitaly Janelt"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "scoringPlay": true,
+   "clock": {
+    "value": 4151.0,
+    "displayValue": "70'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Alexander Isak"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Bradley Barcola"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 4221.0,
+    "displayValue": "71'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Aaron Hickey"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Sepp van den Berg"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 4608.0,
+    "displayValue": "77'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "El Hadji Malick Diouf"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Keane Lewis-Potter"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 4611.0,
+    "displayValue": "77'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Mikkel Damsgaard"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Jaidon Anthony"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 4709.0,
+    "displayValue": "79'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Lewis Koumas"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Alexander Isak"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 4717.0,
+    "displayValue": "79'"
+   },
+   "team": {
+    "id": "364"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Joe Gomez"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Víctor Muñoz"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "93",
+    "text": "Red Card",
+    "type": "red-card"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 5400.0,
+    "displayValue": "90'+2'"
+   },
+   "team": {
+    "id": "337"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Vitaly Janelt"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "id": "83",
+    "text": "End Regular Time",
+    "type": "end-regular-time"
+   },
+   "scoringPlay": false,
+   "clock": {
+    "value": 5400.0,
+    "displayValue": "90'+7'"
+   },
+   "team": {
+    "id": null
+   },
+   "participants": []
+  }
+ ]
+}

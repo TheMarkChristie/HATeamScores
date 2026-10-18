@@ -32,6 +32,10 @@ GUIDE_RETRY_MINUTES = 30                 # after a failed download
 TV_DAYS_AHEAD = 14                       # fixtures this close get their channels looked up
 SPORTSDB_TV_HOURS = 12                   # TheSportsDB's broadcasters for a game are asked again after this long
 
+# Who scored (scorers.py): ESPN first, TheSportsDB's timeline for football games ESPN does not cover
+SCORERS_DAYS = 3                         # finished games this recent get their scorers looked up
+SCORERS_RECHECK_MINUTES = 20             # a game whose goals are not final yet is asked again after this long
+
 # Channels a game gets when the guides and TheSportsDB find none for that country. Mark, 18 Oct 2026: "by default have
 # all Norwegian ice hockey and football elite games on TV2" (TV 2 holds both; most Eliteserien games are on TV 2 Play
 # only, so no guide lists them). Matched by TheSportsDB league id, or by the league's name if an event has no id.

@@ -113,3 +113,8 @@ class SportsDBClient:
         """Who broadcasts a game, in every country TheSportsDB knows (the free key returns two)."""
         data = await self._get(key, f"lookuptv.php?id={quote(event_id)}")
         return data.get("tvevent") or data.get("tvevents") or []
+
+    async def lookup_timeline(self, key: str, event_id: str) -> list[dict[str, Any]]:
+        """A game's events: goals, cards, substitutions (the free key returns the first five)."""
+        data = await self._get(key, f"lookuptimeline.php?id={quote(event_id)}")
+        return data.get("timeline") or []

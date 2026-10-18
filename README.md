@@ -86,6 +86,7 @@ results_days: 1
 | `tv_countries` | `[UK, NO]` | Which countries' channels to show, in this order |
 | `layout` | `columns` | `columns` puts the days side by side when the card is wide enough (a tablet or desktop); `list` keeps one long column. A phone always shows one column |
 | `day_width` | 300 | The narrowest a day column may be, in pixels |
+| `show_goals` | true | Tap a game with goals to see who scored |
 
 A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
 your teams play (Liverpool v Manchester City) appears once.
@@ -118,6 +119,18 @@ Not every game is listed anywhere. Services that sell events rather than run cha
 extra streams) have no guide, and TheSportsDB's broadcaster data is crowd-sourced and often empty for Scottish and
 Norwegian domestic games. The sensor carries the channels too: `tv` on each fixture, and `tv_network` for the game the
 sensor shows.
+
+### Who scored
+
+A game with goals shows **Goals** at the end of its venue line. Tap the game (or press Enter on it) and it opens to list
+the goals in match order: the minute, the scoring side's badge, the scorer and, underneath, the assist. Ice hockey
+shows the period and clock (`P2 13:13`); the NFL shows its scoring plays. A game in play lists the goals so far.
+
+Scorers come from ESPN's public scores service for the competitions it covers (Premier League, EFL Cup, FA Cup,
+Scottish Premiership and cups, Champions League, Europa and Conference League, Nations League, Eliteserien, MLS, NFL,
+NHL), found by the game's date and both team names. A football game ESPN does not cover uses TheSportsDB's timeline:
+on the free key that is the first five events of a game, so goals go missing and the card says so; a premium key
+returns them all. Norwegian and UK ice hockey and basketball have no scorers in either source.
 
 ### One sport per card
 

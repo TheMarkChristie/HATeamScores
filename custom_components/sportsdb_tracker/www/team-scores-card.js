@@ -14,6 +14,7 @@
  * show_tv: true               the UK and Norwegian channels under each coming game
  * layout: columns             columns: the days side by side when the card is wide enough; list: one long column
  * day_width: 300              the narrowest a day column may be, in pixels
+ * show_goals: true             tap a game with goals to see who scored (minute, scorer, assist)
  * tv_countries: [UK, NO]       which countries' channels to show
  *
  * The integration serves this file and registers it as a dashboard resource; nothing to install.
@@ -39,7 +40,7 @@
     .day { padding: 12px 16px 4px; font-size: 0.78em; letter-spacing: 0.06em; text-transform: uppercase;
            color: var(--secondary-text-color); }
     .row { display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto; column-gap: 8px; row-gap: 3px;
-           grid-template-areas: "time home hs" "time away as" "time sub sub" "time tv tv"; align-items: center;
+           grid-template-areas: "time home hs" "time away as" "time sub sub" "time tv tv" "detail detail detail"; align-items: center;
            padding: 8px 14px 8px 16px; border-top: 1px solid var(--divider-color, rgba(127,127,127,0.2));
            overflow: hidden; }
     .row.first { border-top: none; }
@@ -67,6 +68,24 @@
     .tv .flag { display: inline-block; width: 18px; height: 12px; margin-right: 5px; vertical-align: -1px; border-radius: 2px;
                 box-shadow: 0 0 0 1px rgba(127,127,127,0.35); }
     .tv .grp { display: inline; margin-right: 10px; }
+    .row.click { cursor: pointer; }
+    .row.click:hover { background: var(--secondary-background-color, rgba(127,127,127,0.06)); }
+    .row.click:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+    .more { color: var(--primary-color); white-space: nowrap; }
+    .sub { display: flex; gap: 6px; }
+    .sub .subt { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sub .more { flex: 0 0 auto; }
+    .detail { grid-area: detail; padding: 6px 0 2px; min-width: 0; }
+    .goal { display: grid; grid-template-columns: 3.2em 18px minmax(0, 1fr); column-gap: 8px; align-items: start;
+            padding: 3px 0; font-size: 0.85em; color: var(--primary-text-color); }
+    .goal.long { grid-template-columns: 4.4em 18px minmax(0, 1fr); }
+    .goal .min { color: var(--secondary-text-color); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 1px; }
+    .goal .b { width: 16px; height: 16px; object-fit: contain; margin-top: 1px; }
+    .goal .b.none { display: inline-block; border-radius: 50%; background: var(--divider-color, rgba(127,127,127,0.3)); }
+    .goal .who { min-width: 0; overflow-wrap: anywhere; }
+    .goal .ast { display: block; font-size: 0.9em; color: var(--secondary-text-color); }
+    .goal .note { color: var(--secondary-text-color); }
+    .detail .gap { font-size: 0.78em; color: var(--secondary-text-color); padding-top: 3px; }
     .empty { padding: 12px 16px; color: var(--secondary-text-color); }
   `;
 
@@ -89,10 +108,32 @@
       return { title: "Scores", days_ahead: 14, results_days: 1 };
     }
 
+    constructor() {
+      super();
+      this._open = new Set();
+      const toggle = (row) => {
+        const key = row.dataset.ev;
+        if (this._open.has(key)) this._open.delete(key); else this._open.add(key);
+        this._sig = null;
+        this._render();
+        const again = [...this.querySelectorAll(".row.click")].find((r) => r.dataset.ev === key);
+        if (again) again.focus({ preventScroll: true });
+      };
+      this.addEventListener("click", (e) => {
+        const row = e.target.closest && e.target.closest(".row.click");
+        if (row) toggle(row);
+      });
+      this.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const row = e.target.closest && e.target.closest(".row.click");
+        if (row) { e.preventDefault(); toggle(row); }
+      });
+    }
+
     setConfig(config) {
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
                                      show_venue: true, show_league: true, show_tv: true, tv_countries: ["UK", "NO"],
-                                     layout: "columns", day_width: 300 }, config || {});
+                                     layout: "columns", day_width: 300, show_goals: true }, config || {});
       this._sig = null;
       if (this._hass) this._render();
     }
@@ -152,6 +193,10 @@
         const merged = better ? Object.assign({}, prev, g) : Object.assign({}, g, prev);
         for (const k of ["home_badge", "away_badge", "home_id", "away_id", "venue", "league"]) if (merged[k] == null) merged[k] = g[k] != null ? g[k] : prev[k];
         if (!(merged.tv && merged.tv.length)) merged.tv = (g.tv && g.tv.length) ? g.tv : prev.tv;
+        if (!(merged.goals && merged.goals.length)) {
+          const src = (g.goals && g.goals.length) ? g : prev;
+          merged.goals = src.goals; merged.goals_complete = src.goals_complete;
+        }
         games.set(key, merged);
       };
       for (const id of this._entities()) {
@@ -242,7 +287,14 @@
       const subParts = [];
       if (this._config.show_venue && g.venue) subParts.push(g.venue);
       if (this._config.show_league && g.league) subParts.push(g.league);
-      const sub = subParts.length ? `<div class="sub">${esc(subParts.join(" · "))}</div>` : "";
+      const key = String(g.event_id || (g.name || "") + g.date);
+      const goals = this._config.show_goals && Array.isArray(g.goals) ? g.goals : [];
+      const open = goals.length > 0 && this._open.has(key);
+      const word = g.sport === "American Football" ? "Scoring" : "Goals";
+      const more = goals.length ? `<span class="more">${open ? `${word} &#9652;` : `${word} &#9662;`}</span>` : "";
+      const subText = esc(subParts.join(" · "));
+      const sub = subParts.length || more ? `<div class="sub"><span class="subt">${subText}</span>${more}</div>` : "";
+      const detail = open ? this._goals(g, goals) : "";
       let tv = "";
       if (this._config.show_tv && !g.finished && Array.isArray(g.tv) && g.tv.length) {
         const groups = [];
@@ -254,13 +306,33 @@
         }
         if (groups.length) tv = `<div class="tv">${groups.join("")}</div>`;
       }
-      return `<div class="row${first ? " first" : ""}">` +
+      const attrs = goals.length ? ` data-ev="${esc(key)}" role="button" tabindex="0" aria-expanded="${open}"` +
+        ` aria-label="${esc(`${g.home} v ${g.away}: ${open ? "hide" : "show"} ${word.toLowerCase()}`)}"` : "";
+      return `<div class="row${first ? " first" : ""}${goals.length ? " click" : ""}"${attrs}>` +
         `<div class="time ${timeCls}">${esc(time)}</div>` +
         side("home", g.home_id, g.home, g.home_badge, homeLost) +
         `<div class="score hs ${scoreCls}${homeLost ? " loser" : ""}">${hs}</div>` +
         side("away", g.away_id, g.away, g.away_badge, awayLost) +
         `<div class="score as ${scoreCls}${awayLost ? " loser" : ""}">${as}</div>` +
-        sub + tv + `</div>`;
+        sub + tv + detail + `</div>`;
+    }
+
+    /* who scored, in match order: the time, the scoring side's badge, the scorer (the NFL: the play), the assist under it */
+    _goals(g, goals) {
+      const long = goals.some((x) => String(x.time).length > 4);         // "P1 17:56", "Q2 8:00" need a wider column
+      const badge = (side) => {
+        const b = side === "home" ? g.home_badge : side === "away" ? g.away_badge : null;
+        const name = side === "home" ? g.home : side === "away" ? g.away : "";
+        return b ? `<img class="b" src="${esc(b)}" alt="${esc(name)}">` : `<i class="b none" title="${esc(name)}"></i>`;
+      };
+      let html = `<div class="detail">`;
+      for (const x of goals) {
+        html += `<div class="goal${long ? " long" : ""}"><span class="min">${esc(x.time)}</span>${badge(x.side)}<span class="who">${esc(x.player)}` +
+          (x.note ? ` <span class="note">(${esc(x.note)})</span>` : "") +
+          (x.assist ? `<span class="ast">${esc(x.assist)}</span>` : "") + `</span></div>`;
+      }
+      if (g.goals_complete === false) html += `<div class="gap">Not every goal is listed for this game.</div>`;
+      return html + `</div>`;
     }
   }
 

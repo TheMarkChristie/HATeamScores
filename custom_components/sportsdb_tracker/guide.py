@@ -42,6 +42,12 @@ class GuideStore:
         self._by_country: dict[str, list[Programme]] = {}
         self._next_at = 0.0
         self._running = False
+        self._listeners: set = set()
+
+    def add_listener(self, coordinator) -> callable:
+        """A team to refresh as soon as a download finishes, so new channels show without waiting for its next update."""
+        self._listeners.add(coordinator)
+        return lambda: self._listeners.discard(coordinator)
 
     def programmes(self) -> list[Programme]:
         """What is loaded now; starts a refresh in the background when the copy is due one."""
@@ -81,3 +87,5 @@ class GuideStore:
             wait = GUIDE_RETRY_MINUTES * 60 if failed else GUIDE_REFRESH_HOURS * 3600
             self._next_at = monotonic() + wait
             self._running = False
+        for coordinator in list(self._listeners):
+            self._hass.async_create_task(coordinator.async_request_refresh())

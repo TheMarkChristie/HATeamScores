@@ -136,7 +136,8 @@ class Matching(unittest.TestCase):
 class SportsDB(unittest.TestCase):
     ROWS = [{"strCountry": "United Kingdom", "strChannel": "Amazon Prime Video UK"},
             {"strCountry": "The Netherlands", "strChannel": "Ziggo Sport 3"},
-            {"strCountry": "Norway", "strChannel": "TV 2 Play"}]
+            {"strCountry": "Norway", "strChannel": "TV 2 Play"},
+            {"strCountry": "United Kingdom", "strChannel": "TNT Sports Ultimate"}]   # the 4K copy, left out
 
     def test_uk_and_norway_only(self):
         self.assertEqual(tv.sportsdb_listings(self.ROWS), [

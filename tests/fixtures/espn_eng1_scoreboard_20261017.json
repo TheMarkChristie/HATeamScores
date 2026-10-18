@@ -1,0 +1,169 @@
+{
+ "events": [
+  {
+   "id": "401878771",
+   "date": "2026-10-17T11:30Z",
+   "name": "Chelsea at Everton",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "368",
+        "displayName": "Everton",
+        "shortDisplayName": "Everton",
+        "name": "Everton",
+        "location": "Everton",
+        "abbreviation": "EVE"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "363",
+        "displayName": "Chelsea",
+        "shortDisplayName": "Chelsea",
+        "name": "Chelsea",
+        "location": "Chelsea",
+        "abbreviation": "CHE"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401879262",
+   "date": "2026-10-17T14:00Z",
+   "name": "Liverpool at Brentford",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "337",
+        "displayName": "Brentford",
+        "shortDisplayName": "Brentford",
+        "name": "Brentford",
+        "location": "Brentford",
+        "abbreviation": "BRE"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "364",
+        "displayName": "Liverpool",
+        "shortDisplayName": "Liverpool",
+        "name": "Liverpool",
+        "location": "Liverpool",
+        "abbreviation": "LIV"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401878770",
+   "date": "2026-10-17T14:00Z",
+   "name": "Hull City at Fulham",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "370",
+        "displayName": "Fulham",
+        "shortDisplayName": "Fulham",
+        "name": "Fulham",
+        "location": "Fulham",
+        "abbreviation": "FUL"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "306",
+        "displayName": "Hull City",
+        "shortDisplayName": "Hull",
+        "name": "Hull City",
+        "location": "Hull City",
+        "abbreviation": "HUL"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401879259",
+   "date": "2026-10-17T14:00Z",
+   "name": "Ipswich Town at Manchester City",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "382",
+        "displayName": "Manchester City",
+        "shortDisplayName": "Man City",
+        "name": "Manchester City",
+        "location": "Manchester City",
+        "abbreviation": "MNC"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "373",
+        "displayName": "Ipswich Town",
+        "shortDisplayName": "Ipswich",
+        "name": "Ipswich Town",
+        "location": "Ipswich Town",
+        "abbreviation": "IPS"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401879258",
+   "date": "2026-10-17T16:30Z",
+   "name": "Aston Villa at Newcastle United",
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "361",
+        "displayName": "Newcastle United",
+        "shortDisplayName": "Newcastle",
+        "name": "Newcastle United",
+        "location": "Newcastle United",
+        "abbreviation": "NEW"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "362",
+        "displayName": "Aston Villa",
+        "shortDisplayName": "Aston Villa",
+        "name": "Aston Villa",
+        "location": "Aston Villa",
+        "abbreviation": "AVL"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

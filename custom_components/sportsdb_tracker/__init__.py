@@ -18,6 +18,7 @@ from .api import get_client
 from .card_resource import async_remove_card_resource, async_schedule_card_resource
 from .const import CARD_FILE, DOMAIN, STORAGE_VERSION, URL_BASE
 from .coordinator import SportsDBCoordinator
+from .guide import get_guide
 
 PLATFORMS = [Platform.SENSOR]
 _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
@@ -63,6 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SportsDBConfigEntry) -> 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_options_changed))
+    entry.async_on_unload(get_guide(hass).add_listener(coordinator))      # new channels as soon as a guide download lands
     return True
 
 
