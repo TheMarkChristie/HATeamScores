@@ -45,5 +45,25 @@
         }
       }
     }
+  },
+  "services": {
+    "open_app": {
+      "name": "Open an app on a TV",
+      "description": "Opens a channel's app on a TV box through its Android Debug Bridge (or an Android TV Remote). The Team Scores card calls this when a channel is tapped.",
+      "fields": {
+        "device": {
+          "name": "Device",
+          "description": "The TV to open it on: a Google Cast device with an Android Debug Bridge on the same box, the bridge itself, or an Android TV Remote."
+        },
+        "app": {
+          "name": "App",
+          "description": "The app's Android package name (no.tv2.sumo) or a link the app opens."
+        },
+        "name": {
+          "name": "Name",
+          "description": "The app's name, for messages."
+        }
+      }
+    }
   }
 }

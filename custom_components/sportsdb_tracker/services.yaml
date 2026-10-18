@@ -1,0 +1,18 @@
+open_app:
+  fields:
+    device:
+      required: true
+      selector:
+        entity:
+          domain:
+            - media_player
+            - remote
+    app:
+      required: true
+      example: no.tv2.sumo
+      selector:
+        text:
+    name:
+      example: TV 2 Play
+      selector:
+        text:

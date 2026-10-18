@@ -19,6 +19,7 @@ from .card_resource import async_remove_card_resource, async_schedule_card_resou
 from .const import CARD_FILE, DOMAIN, STORAGE_VERSION, URL_BASE
 from .coordinator import SportsDBCoordinator
 from .guide import get_guide
+from .launch import async_register as async_register_launch
 from .today import async_register as async_register_today
 
 PLATFORMS = [Platform.SENSOR]
@@ -55,6 +56,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     url = await _card_url(hass)
     frontend.add_extra_js_url(hass, url)
     async_register_today(hass)             # the card's On TV today button asks over the websocket
+    async_register_launch(hass)            # a tapped channel opens its app on the TV chosen (open_app, devices)
     async_schedule_card_resource(hass, url)
     return True
 

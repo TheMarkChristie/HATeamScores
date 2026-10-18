@@ -17,9 +17,10 @@
  * day_width: 300              the narrowest a day column may be, in pixels
  * show_goals: true             who scored (minute, scorer, assist) in a game's details; tap any game for them
  * show_highlights: true        a Highlights link (YouTube) under a finished game that has one
- * tv_devices: [remote.x, ...]  Google devices (Android TV Remote) a channel can open on: tap a channel, pick the device,
- *                              its app opens there ({entity: remote.x, name: Lounge} to name one)
- * tv_launch_countries: [NO]    only these countries' channels open apps (default: tv_countries)
+ * tv_devices: [entity, ...]    the TVs a tapped channel can open its app on, asked every time (default: the house's
+ *                              Google Cast devices; {entity: media_player.x, name: Lounge} to name one). The integration
+ *                              opens the app through the box's Android Debug Bridge (sportsdb_tracker.open_app)
+ * tv_launch_countries: ["NO"]  only these countries' channels open apps (default: tv_countries; quote NO in YAML)
  * tv_apps: [{match: "^Clan TV", name: Clan TV, app: <package or deep link>, country: UK}]   more channel -> app rows
  * show_tv_button: true         an On TV today button: every game on UK or Norwegian TV today, by time
  * tv_countries: [UK, NO]       which countries' channels to show
@@ -137,17 +138,25 @@
     .empty { padding: 12px 16px; color: var(--secondary-text-color); }
   `;
 
-  /* the app that shows a channel, by its name and country, for opening it on a Google device (Android TV Remote's
-   * remote.turn_on with an activity). An app is a package name (checked on the Play Store, 18 Oct 2026) or a deep link;
-   * tv_apps in the card's settings comes first, so a link that works better on a device can replace one here. */
+  /* the app that shows a channel, by its name and country, for opening it on a TV box (the integration's open_app,
+   * through the box's Android Debug Bridge). An app is an Android package name or a deep link; tv_apps in the card's
+   * settings comes first. The Norwegian ones were opened on the living room Google TV Streamer, 18 Oct 2026; the UK ones
+   * are the apps installed on it (Sky Go is not, so a Sky channel says so). */
   const APPS = [
     { country: "NO", match: /^TV ?2\b/i, name: "TV 2 Play", app: "no.tv2.sumo" },
-    { country: "NO", match: /^(V ?sport|Viaplay)/i, name: "Viaplay", app: "com.viaplay.android" },
+    { country: "NO", match: /^(V ?sport|Viaplay|TV ?3)/i, name: "Viaplay", app: "com.viaplay.android" },
     { country: "NO", match: /^NRK/i, name: "NRK TV", app: "no.nrk.tv" },
-    { country: "NO", match: /^Eurosport/i, name: "Max", app: "com.wbd.stream" },
+    { country: "NO", match: /^(Eurosport|TVNorge|FEM|VOX|REX)\b/i, name: "Max", app: "com.wbd.stream" },
     { country: "", match: /^DAZN/i, name: "DAZN", app: "com.dazn" },
+    { country: "", match: /^EuroLeague TV/i, name: "EuroLeague TV", app: "dce.euroleague" },   // id from Mark
+    { country: "", match: /^(Amazon )?Prime Video/i, name: "Prime Video", app: "com.amazon.amazonvideo.livingroom" },
     { country: "UK", match: /^Sky Sports/i, name: "Sky Go", app: "com.bskyb.skygo" },
     { country: "UK", match: /^ITV/i, name: "ITVX", app: "air.ITVMobilePlayer" },
+    { country: "UK", match: /^BBC/i, name: "BBC iPlayer", app: "bbc.iplayer.android" },
+    { country: "UK", match: /^Premier Sports/i, name: "Premier Player", app: "premierplayer.premiersports.com.premierplayer" },
+    { country: "UK", match: /^TNT Sports/i, name: "discovery+", app: "com.discovery.dplay" },
+    { country: "UK", match: /^(Channel 4|More4|E4|4seven)\b/i, name: "Channel 4", app: "com.channel4.ondemand" },
+    { country: "UK", match: /^(5|Channel 5|5ACTION|5USA|5STAR)\b/i, name: "My5", app: "com.channel5.my5" },
   ];
 
   /* the flag beside each country's channels: the saltire for the UK listings (the household's home there is Scotland),
@@ -233,18 +242,46 @@
       return [...own, ...APPS].find((a) => (!a.country || a.country === cc) && a.match.test(channel)) || null;
     }
 
+    /* the TVs offered: the card's tv_devices, else the house's Google Cast devices as the integration lists them (with
+       whether each can open apps). ok: can be chosen; why: the reason it cannot. */
     _devices() {
-      return (this._config.tv_devices || []).map((d) => {
-        const entity = typeof d === "string" ? d : d.entity;
-        const st = this._hass && this._hass.states[entity];
-        return { entity, name: (typeof d === "object" && d.name) || (st && st.attributes.friendly_name) || entity,
-                 ok: !!st && st.state !== "unavailable" };
-      });
+      if ((this._config.tv_devices || []).length) {
+        return this._config.tv_devices.map((d) => {
+          const entity = typeof d === "string" ? d : d.entity;
+          const st = this._hass && this._hass.states[entity];
+          const ok = !!st && st.state !== "unavailable";
+          return { entity, name: (typeof d === "object" && d.name) || (st && st.attributes.friendly_name) || entity,
+                   ok, why: ok ? "" : "unavailable" };
+        });
+      }
+      return (this._devList || []).map((d) => ({ entity: d.entity_id, name: d.name, ok: d.available && d.apps,
+                                                 why: !d.apps ? "cannot open apps" : !d.available ? "unavailable" : "" }));
+    }
+
+    /* the Cast devices, read once when the card first has hass and again (at most every five minutes) when a channel
+       is tapped, so a TV added or a bridge set up later shows without a reload */
+    async _loadDevices(force) {
+      if (!this._hass || (this._config.tv_devices || []).length) return;
+      if (this._devLoading || (!force && this._devList && Date.now() - this._devAt < 300000)) return;
+      this._devLoading = true;
+      try {
+        const res = await this._hass.callWS({ type: "sportsdb_tracker/devices" });
+        const had = (this._devList || []).length;
+        this._devList = (res && res.devices) || [];
+        this._devAt = Date.now();
+        if (!had && this._devList.length) { this._sig = null; this._render(); }   // channels become tappable
+        if (this._launch) this._redrawRow(this._launch.key);
+      } catch (err) {
+        this._devList = this._devList || [];
+      } finally {
+        this._devLoading = false;
+      }
     }
 
     _launchable(channel, cc) {
       const countries = this._config.tv_launch_countries || this._config.tv_countries || ["UK", "NO"];
-      return this._devices().length > 0 && countries.includes(cc) && !!this._appFor(channel, cc);
+      // tappable only when some TV could open it (one that is merely off line still counts, and says so)
+      return this._devices().some((d) => d.ok || d.why === "unavailable") && countries.includes(cc) && !!this._appFor(channel, cc);
     }
 
     _chan(channel, cc, key) {
@@ -259,6 +296,7 @@
       if (!app) return;
       const before = this._launch && this._launch.key;
       this._launch = { key, channel, app, msg: "" };
+      this._loadDevices(false);                                   // fresh list if the last read is over five minutes old
       if (before && before !== key) this._redrawRow(before);
       const row = this._redrawRow(key);
       const first = row && (row.querySelector(".launch .dev:not([disabled])") || row.querySelector(".launch .cancel"));
@@ -277,9 +315,11 @@
       const l = this._launch;
       if (!l || !this._hass) return;
       const dev = this._devices().find((d) => d.entity === entity);
+      l.msg = `Opening ${l.app.name} on ${dev ? dev.name : entity}...`;
+      this._redrawRow(l.key);
       try {
-        await this._hass.callService("remote", "turn_on", { entity_id: entity, activity: l.app.app });
-        l.msg = `Opening ${l.app.name} on ${dev ? dev.name : entity}.`;
+        await this._hass.callService("sportsdb_tracker", "open_app", { device: entity, app: l.app.app, name: l.app.name });
+        l.msg = `${l.app.name} is open on ${dev ? dev.name : entity}.`;
         setTimeout(() => { if (this._launch === l) this._closeLaunch(); }, 4000);
       } catch (err) {
         l.msg = `${l.app.name} could not be opened: ${(err && err.message) || err}`;
@@ -293,7 +333,7 @@
       const l = this._launch;
       if (!l || l.key !== key) return "";
       const devs = this._devices().map((d) =>
-        `<button class="dev" data-dev="${esc(d.entity)}"${d.ok ? "" : " disabled"}>${esc(d.name)}${d.ok ? "" : " (unavailable)"}</button>`).join("");
+        `<button class="dev" data-dev="${esc(d.entity)}"${d.ok ? "" : " disabled"}>${esc(d.name)}${d.ok ? "" : ` (${esc(d.why)})`}</button>`).join("");
       return `<div class="launch" role="group" aria-label="${esc(`Open ${l.app.name} on`)}">` +
         `<span class="lt">Open ${esc(l.app.name)} (${esc(l.channel)}) on</span>${devs}<button class="cancel">Cancel</button>` +
         (l.msg ? `<span class="msg" role="status" tabindex="-1">${esc(l.msg)}</span>` : "") + `</div>`;
@@ -356,7 +396,9 @@
     }
 
     set hass(hass) {
+      const first = !this._hass;
       this._hass = hass;
+      if (first) this._loadDevices(false);
       this._render();
     }
 
