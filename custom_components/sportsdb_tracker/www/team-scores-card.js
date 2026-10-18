@@ -32,13 +32,51 @@
   const ATTRIBUTION = "Data provided by TheSportsDB.com";
   const DAY_MS = 86400000;
 
+  /* the card's own words, in English and Norwegian (nb, nn and no read nb); the dates already follow the user's language */
+  const STR = {
+    en: {
+      today: "Today", yesterday: "Yesterday", tomorrow: "Tomorrow", details: "Details", goals: "Goals", scoring: "Scoring",
+      show: "show", hide: "hide", v: "v", onTvToday: "On TV today", back: "Back to scores",
+      onTvTitle: "Every game on UK or Norwegian TV today", competition: "Competition", round: (n) => `Round ${n}`,
+      when: "When", venue: "Venue", tv: "TV", more: "More", matchPage: "Match page on TheSportsDB", highlights: "Highlights",
+      highlightsLabel: (h, a) => `${h} v ${a}: highlights (opens in a new tab)`, notEveryGoal: "Not every goal is listed for this game.",
+      awaiting: "Awaiting result", noGames: (n) => `No games in the next ${n} days.`, loadingGuides: "Loading the TV guides...",
+      guidesLoading: "The TV guides are still downloading; trying again shortly.",
+      tvError: (m) => `Today's TV could not be read (${m}).`, nothingOnTv: "Nothing on UK or Norwegian TV today that the guides list.",
+      freeKey: "A premium TheSportsDB key lists every game; the free key lists a few.",
+      failedSports: (list) => `Not read just now: ${list}. Trying again in a few minutes.`,
+      openOn: (app) => `Open ${app} on`, openAppOn: (app, ch) => `Open ${app} (${ch}) on`, cancel: "Cancel",
+      opening: (app, tv) => `Opening ${app} on ${tv}...`, opened: (app, tv) => `${app} is open on ${tv}.`,
+      notOpened: (app, e) => `${app} could not be opened: ${e}`, cannotOpen: "cannot open apps", unavailable: "unavailable",
+      chanLabel: (ch, app) => `${ch}: open ${app} on a TV`,
+    },
+    nb: {
+      today: "I dag", yesterday: "I går", tomorrow: "I morgen", details: "Detaljer", goals: "Mål", scoring: "Poeng",
+      show: "vis", hide: "skjul", v: "mot", onTvToday: "På TV i dag", back: "Tilbake til resultatene",
+      onTvTitle: "Alle kamper på britisk eller norsk TV i dag", competition: "Turnering", round: (n) => `Runde ${n}`,
+      when: "Når", venue: "Arena", tv: "TV", more: "Mer", matchPage: "Kampsiden på TheSportsDB", highlights: "Høydepunkter",
+      highlightsLabel: (h, a) => `${h} mot ${a}: høydepunkter (åpnes i en ny fane)`, notEveryGoal: "Ikke alle målene er med for denne kampen.",
+      awaiting: "Venter på resultat", noGames: (n) => `Ingen kamper de neste ${n} dagene.`, loadingGuides: "Henter TV-guidene...",
+      guidesLoading: "TV-guidene lastes fortsatt ned; prøver igjen straks.",
+      tvError: (m) => `Dagens TV kunne ikke leses (${m}).`, nothingOnTv: "Ingenting på britisk eller norsk TV i dag som guidene viser.",
+      freeKey: "En premium-nøkkel for TheSportsDB viser alle kamper; gratisnøkkelen viser noen få.",
+      failedSports: (list) => `Ikke lest akkurat nå: ${list}. Prøver igjen om noen minutter.`,
+      openOn: (app) => `Åpne ${app} på`, openAppOn: (app, ch) => `Åpne ${app} (${ch}) på`, cancel: "Avbryt",
+      opening: (app, tv) => `Åpner ${app} på ${tv}...`, opened: (app, tv) => `${app} er åpen på ${tv}.`,
+      notOpened: (app, e) => `${app} kunne ikke åpnes: ${e}`, cannotOpen: "kan ikke åpne apper", unavailable: "utilgjengelig",
+      chanLabel: (ch, app) => `${ch}: åpne ${app} på en TV`,
+    },
+  };
+
   const CSS = `
     :host { display: block; }
     ha-card { padding: 4px 0 10px; container-type: inline-size; }
     /* every day is its own panel with a gap between, so the days stand apart on a phone as well */
     .days { display: flex; flex-direction: column; gap: 12px; padding: 6px 8px 0; }
-    .dayblock { min-width: 0; border-radius: 12px; padding-bottom: 4px;
-                background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
+    /* a light tint of the text colour over the card, and a border: the secondary text keeps its contrast in the light
+       theme, and the panels still show where secondary-background matches the card (the NeonPlan theme) */
+    .dayblock { min-width: 0; border-radius: 12px; padding-bottom: 4px; border: 1px solid var(--divider-color, rgba(127,127,127,0.25));
+                background: rgba(127,127,127,0.05); background: color-mix(in srgb, var(--primary-text-color, #888) 4%, transparent); }
     /* wide enough for two days side by side: each day becomes its own column */
     @container (min-width: 620px) {
       .days.columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tsc-day-width, 300px), 1fr));
@@ -57,7 +95,8 @@
     .time { grid-area: time; align-self: start; padding-top: 3px; font-size: 0.9em; color: var(--secondary-text-color);
             font-variant-numeric: tabular-nums; white-space: nowrap; }
     .time .lg { display: block; width: 22px; height: 22px; margin-top: 7px; object-fit: contain; object-position: left center; }
-    .time.live { color: var(--error-color, #db4437); font-weight: 600; }
+    .time.live { color: var(--error-color, #db4437); font-weight: 700; }
+    .time.await { font-weight: 600; }
     .time.ft { font-weight: 600; }
     .side { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 0.95em; color: var(--primary-text-color); }
     .side.home { grid-area: home; }
@@ -81,7 +120,10 @@
     .tv .grp { display: inline; margin-right: 10px; }
     .row.click { cursor: pointer; }
     .row.click:hover { background: var(--secondary-background-color, rgba(127,127,127,0.06)); }
-    .more { color: var(--primary-color); white-space: nowrap; padding: 0 4px; border-radius: 4px; }
+    /* the markers and channel links take the text colour, underlined: the theme's accent colour is too light for small
+       text on a light card (2:1) */
+    .more { color: var(--primary-text-color); white-space: nowrap; padding: 0 4px; border-radius: 4px;
+            text-decoration: underline; text-underline-offset: 2px; }
     .more:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--primary-color); }
     .hl a { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-text-color); text-decoration: none; border-radius: 4px; }
     .hl a:hover span { text-decoration: underline; }
@@ -109,8 +151,8 @@
     .facts .v .grp { display: block; }
     .facts .flag { display: inline-block; width: 18px; height: 12px; margin-right: 6px; vertical-align: -1px; border-radius: 2px;
                    box-shadow: 0 0 0 1px rgba(127,127,127,0.35); }
-    .facts a { color: var(--primary-color); }
-    .ch { font: inherit; color: var(--primary-color); background: none; border: 0; padding: 2px 0; margin: 0; cursor: pointer;
+    .facts a { color: var(--primary-text-color); }
+    .ch { font: inherit; color: var(--primary-text-color); background: none; border: 0; padding: 2px 0; margin: 0; cursor: pointer;
           text-decoration: underline; text-underline-offset: 2px; }
     .ch:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; border-radius: 2px; }
     .launch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 2px; font-size: 1.15em; }
@@ -211,6 +253,8 @@
       this._tv = null;
       this._tvLoading = false;
       this._tvTimer = null;
+      this._tvRetry = null;
+      this._tick = null;
       this._launch = null;
       this.addEventListener("click", (e) => {
         if (!e.target.closest) return;
@@ -232,8 +276,30 @@
       });
     }
 
+    connectedCallback() {
+      // back on screen (Home Assistant re-attaches a cached view's cards): the On TV today list reads again and keeps
+      // refreshing, and the days are redrawn in case the date moved on while the card was away
+      if (this._mode === "tv" && !this._tvTimer && this._hass) {
+        this._fetchTv();
+        this._tvTimer = setInterval(() => this._fetchTv(), 600000);
+      }
+      if (this._hass) { this._sig = null; this._render(); }
+    }
+
     disconnectedCallback() {
       if (this._tvTimer) { clearInterval(this._tvTimer); this._tvTimer = null; }
+      if (this._tvRetry) { clearTimeout(this._tvRetry); this._tvRetry = null; }
+      if (this._tick) { clearTimeout(this._tick); this._tick = null; }
+    }
+
+    _lang() {
+      const l = String((this._hass && ((this._hass.locale && this._hass.locale.language) || this._hass.language)) || "en").toLowerCase();
+      return /^(nb|nn|no)/.test(l) ? "nb" : "en";
+    }
+
+    _t(key, ...args) {
+      const v = STR[this._lang()][key] != null ? STR[this._lang()][key] : STR.en[key];
+      return typeof v === "function" ? v(...args) : v;
     }
 
     /* a channel opens its app on a Google device (Android TV Remote): tapping it asks which device, every time */
@@ -251,11 +317,11 @@
           const st = this._hass && this._hass.states[entity];
           const ok = !!st && st.state !== "unavailable";
           return { entity, name: (typeof d === "object" && d.name) || (st && st.attributes.friendly_name) || entity,
-                   ok, why: ok ? "" : "unavailable" };
+                   ok, why: ok ? "" : this._t("unavailable"), off: !ok };
         });
       }
-      return (this._devList || []).map((d) => ({ entity: d.entity_id, name: d.name, ok: d.available && d.apps,
-                                                 why: !d.apps ? "cannot open apps" : !d.available ? "unavailable" : "" }));
+      return (this._devList || []).map((d) => ({ entity: d.entity_id, name: d.name, ok: d.available && d.apps, off: d.apps && !d.available,
+                                                 why: !d.apps ? this._t("cannotOpen") : !d.available ? this._t("unavailable") : "" }));
     }
 
     /* the Cast devices, read once when the card first has hass and again (at most every five minutes) when a channel
@@ -281,14 +347,14 @@
     _launchable(channel, cc) {
       const countries = this._config.tv_launch_countries || this._config.tv_countries || ["UK", "NO"];
       // tappable only when some TV could open it (one that is merely off line still counts, and says so)
-      return this._devices().some((d) => d.ok || d.why === "unavailable") && countries.includes(cc) && !!this._appFor(channel, cc);
+      return this._devices().some((d) => d.ok || d.off) && countries.includes(cc) && !!this._appFor(channel, cc);
     }
 
     _chan(channel, cc, key) {
       if (!this._launchable(channel, cc)) return esc(channel);
       const app = this._appFor(channel, cc);
       return `<button class="ch" data-ev="${esc(key)}" data-ch="${esc(channel)}" data-cc="${esc(cc)}"` +
-        ` aria-label="${esc(`${channel}: open ${app.name} on a TV`)}">${esc(channel)}</button>`;
+        ` aria-label="${esc(this._t("chanLabel", channel, app.name))}">${esc(channel)}</button>`;
     }
 
     _askDevice(key, channel, cc) {
@@ -305,9 +371,11 @@
 
     _closeLaunch() {
       const key = this._launch && this._launch.key;
+      const channel = this._launch && this._launch.channel;
       this._launch = null;
       const row = key && this._redrawRow(key);
-      const ch = row && row.querySelector(".ch");
+      // focus goes back to the channel that was tapped, not the row's first one
+      const ch = row && ([...row.querySelectorAll(".ch")].find((b) => b.dataset.ch === channel) || row.querySelector(".ch"));
       if (ch) ch.focus({ preventScroll: true });
     }
 
@@ -315,14 +383,14 @@
       const l = this._launch;
       if (!l || !this._hass) return;
       const dev = this._devices().find((d) => d.entity === entity);
-      l.msg = `Opening ${l.app.name} on ${dev ? dev.name : entity}...`;
+      l.msg = this._t("opening", l.app.name, dev ? dev.name : entity);
       this._redrawRow(l.key);
       try {
         await this._hass.callService("sportsdb_tracker", "open_app", { device: entity, app: l.app.app, name: l.app.name });
-        l.msg = `${l.app.name} is open on ${dev ? dev.name : entity}.`;
+        l.msg = this._t("opened", l.app.name, dev ? dev.name : entity);
         setTimeout(() => { if (this._launch === l) this._closeLaunch(); }, 4000);
       } catch (err) {
-        l.msg = `${l.app.name} could not be opened: ${(err && err.message) || err}`;
+        l.msg = this._t("notOpened", l.app.name, (err && err.message) || err);
       }
       const row = this._redrawRow(l.key);
       const msg = row && row.querySelector(".launch .msg");
@@ -334,8 +402,8 @@
       if (!l || l.key !== key) return "";
       const devs = this._devices().map((d) =>
         `<button class="dev" data-dev="${esc(d.entity)}"${d.ok ? "" : " disabled"}>${esc(d.name)}${d.ok ? "" : ` (${esc(d.why)})`}</button>`).join("");
-      return `<div class="launch" role="group" aria-label="${esc(`Open ${l.app.name} on`)}">` +
-        `<span class="lt">Open ${esc(l.app.name)} (${esc(l.channel)}) on</span>${devs}<button class="cancel">Cancel</button>` +
+      return `<div class="launch" role="group" aria-label="${esc(this._t("openOn", l.app.name))}">` +
+        `<span class="lt">${esc(this._t("openAppOn", l.app.name, l.channel))}</span>${devs}<button class="cancel">${esc(this._t("cancel"))}</button>` +
         (l.msg ? `<span class="msg" role="status" tabindex="-1">${esc(l.msg)}</span>` : "") + `</div>`;
     }
 
@@ -360,29 +428,39 @@
       this._tvLoading = true;
       this._sig = null;
       this._render();
+      const fmt = this._fmt();
+      const query = { type: "sportsdb_tracker/tv_today", day: fmt.day.format(new Date()) };
+      const tz = this._timeZone() || (Intl.DateTimeFormat().resolvedOptions().timeZone);
+      if (tz) query.time_zone = tz;
       try {
-        this._tv = await this._hass.callWS({ type: "sportsdb_tracker/tv_today" });
+        this._tv = await this._hass.callWS(query);
       } catch (err) {
         this._tv = { status: "error", games: [], message: (err && err.message) || String(err) };
       }
       this._tvLoading = false;
+      // still downloading: ask again in half a minute rather than at the next ten-minute read
+      if (this._tv && this._tv.status === "guides_loading" && this._mode === "tv" && !this._tvRetry) {
+        this._tvRetry = setTimeout(() => { this._tvRetry = null; if (this._mode === "tv") this._fetchTv(); }, 30000);
+      }
       this._sig = null;
       this._render();
     }
 
     _tvView(mine, fmt) {
       const tv = this._tv;
-      let html = `<div class="tvhead">On TV today</div>`;
-      if (!tv) return html + `<div class="empty">Loading the TV guides...</div>`;
-      if (tv.status === "guides_loading") return html + `<div class="empty">The TV guides are still downloading. Try again in a minute.</div>`;
-      if (tv.status === "error") return html + `<div class="empty">Today's TV could not be read (${esc(tv.message || "")}).</div>`;
+      let html = `<div class="tvhead">${esc(this._t("onTvToday"))}</div>`;
+      if (!tv) return html + `<div class="empty">${esc(this._t("loadingGuides"))}</div>`;
+      if (tv.status === "guides_loading") return html + `<div class="empty">${esc(this._t("guidesLoading"))}</div>`;
+      if (tv.status === "error") return html + `<div class="empty">${esc(this._t("tvError", tv.message || ""))}</div>`;
+      if (tv.day && tv.day !== fmt.day.format(new Date()) && !this._tvLoading) this._fetchTv();   // the day moved on
       const wanted = this._config.tv_countries || ["UK", "NO"];
       const games = (tv.games || []).filter((g) => (g.tv || []).some((i) => wanted.includes(i.country)));
-      if (!games.length) html += `<div class="empty">Nothing on UK or Norwegian TV today that the guides list.</div>`;
+      if (!games.length) html += `<div class="empty">${esc(this._t("nothingOnTv"))}</div>`;
       html += `<div class="tvlist">`;
       games.forEach((g, i) => { html += this._row(Object.assign({}, g, { finished: false, live: false, goals: [] }), Date.parse(g.date), mine, fmt, i === 0); });
       html += `</div>`;
-      if (tv.premium === false) html += `<div class="empty" style="font-size:0.8em">A premium TheSportsDB key lists every game; the free key lists a few.</div>`;
+      if (tv.failed && tv.failed.length) html += `<div class="empty" style="font-size:0.8em" role="status">${esc(this._t("failedSports", tv.failed.join(", ")))}</div>`;
+      if (tv.premium === false) html += `<div class="empty" style="font-size:0.8em">${esc(this._t("freeKey"))}</div>`;
       return html;
     }
 
@@ -408,6 +486,8 @@
 
     _entities() {
       const states = this._hass.states;
+      const count = Object.keys(states).length;
+      if (this._ents && this._entsCount === count && this._entsCfg === this._config && Date.now() - this._entsAt < 300000) return this._ents;
       let ids;
       if (Array.isArray(this._config.entities)) ids = this._config.entities.filter((id) => states[id]);
       else {
@@ -416,7 +496,11 @@
         if (Array.isArray(this._config.prefixes) && this._config.prefixes.length)
           ids = ids.filter((id) => this._config.prefixes.some((p) => id.startsWith(p)));
       }
-      return ids.sort();
+      this._ents = ids.sort();
+      this._entsCount = count;
+      this._entsCfg = this._config;
+      this._entsAt = Date.now();
+      return this._ents;
     }
 
     _timeZone() {
@@ -456,6 +540,8 @@
           const src = (g.goals && g.goals.length) ? g : prev;
           merged.goals = src.goals; merged.goals_complete = src.goals_complete;
         }
+        merged.awaiting = !!(g.awaiting || prev.awaiting) && !merged.finished && !merged.live;
+        if (merged.time_known == null) merged.time_known = g.time_known != null ? g.time_known : prev.time_known;
         games.set(key, merged);
       };
       for (const id of this._entities()) {
@@ -470,7 +556,8 @@
           home: home ? a.team_name : a.opponent_name, away: home ? a.opponent_name : a.team_name,
           home_badge: home ? a.team_logo : a.opponent_logo, away_badge: home ? a.opponent_logo : a.team_logo,
           home_score: home ? a.team_score : a.opponent_score, away_score: home ? a.opponent_score : a.team_score,
-          finished: st === "POST" && a.team_score != null, live: st === "IN" });
+          finished: st === "POST" && a.team_score != null, live: st === "IN",
+          awaiting: st === "POST" && a.team_score == null && a.clock === "Awaiting result" });
         add(a.last_game); add(a.next_game);
         (a.results || []).forEach((g) => add(g));
         (a.fixtures || []).forEach((g) => add(g));
@@ -480,8 +567,10 @@
 
     _render() {
       if (!this._hass || !this._config) return;
-      const sig = this._entities().map((id) => id + "@" + this._hass.states[id].last_updated).join("|") + "#" + Math.floor(Date.now() / 60000) +
-        "#" + this._mode + (this._tvLoading ? "L" : "");
+      // the sensors only write when their content changes (no time stamp), so their last_updated is what to watch;
+      // the passing of time is handled by a timer set for the next moment the days change (see _schedule)
+      const sig = this._entities().map((id) => id + "@" + this._hass.states[id].last_updated).join("|") +
+        "#" + this._mode + (this._tvLoading ? "L" : "") + "#" + this._lang();
       if (sig === this._sig) return;
       this._sig = sig;
       this._rowArgs = new Map();
@@ -503,11 +592,12 @@
         // a game with both scores is a result whatever an older sensor says; a past game without one is stale
         if (!g.live && g.home_score != null && g.away_score != null) g.finished = true;
         if (g.finished) { if (key < firstKey) continue; }
-        else if (g.live) { /* always shown */ }
+        else if (g.live || g.awaiting) { /* always shown, until the result is in */ }
         else if (t < now - 4 * 3600000 || key > lastKey) continue;
         rows.push({ g, t, key });
       }
       rows.sort((a, b) => a.t - b.t);
+      this._schedule(rows, fmt, now);
 
       const byDay = new Map();
       for (const r of rows) {
@@ -517,20 +607,20 @@
 
       let html = "";
       const button = this._config.show_tv_button
-        ? `<button class="tvbtn" aria-pressed="${this._mode === "tv"}" title="Every game on UK or Norwegian TV today">` +
+        ? `<button class="tvbtn" aria-pressed="${this._mode === "tv"}" title="${esc(this._t("onTvTitle"))}">` +
           `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>` +
-          `${this._mode === "tv" ? "Back to scores" : "On TV today"}</button>` : "";
+          `${esc(this._mode === "tv" ? this._t("back") : this._t("onTvToday"))}</button>` : "";
       if (this._config.title || button) html += `<div class="bar">${this._config.title ? `<div class="head">${esc(this._config.title)}</div>` : ""}${button}</div>`;
       if (this._mode === "tv") {
         this._paint(html + this._tvView(mine, fmt));
         return;
       }
-      if (!rows.length) html += `<div class="empty">No games in the next ${this._config.days_ahead} days.</div>`;
+      if (!rows.length) html += `<div class="empty">${esc(this._t("noGames", this._config.days_ahead))}</div>`;
       const columns = this._config.layout !== "list";
       const width = Math.max(220, Number(this._config.day_width) || 300);
       html += `<div class="days${columns ? " columns" : ""}" style="--tsc-day-width:${width}px">`;
       for (const [key, list] of byDay) {
-        const named = key === todayKey ? "Today" : key === yesterdayKey ? "Yesterday" : key === tomorrowKey ? "Tomorrow" : "";
+        const named = key === todayKey ? this._t("today") : key === yesterdayKey ? this._t("yesterday") : key === tomorrowKey ? this._t("tomorrow") : "";
         const date = fmt.head.format(list[0].t);
         html += `<section class="dayblock"><div class="day" role="heading" aria-level="3">` +
           (named ? `${esc(named)}<span class="date">${esc(date)}</span>` : esc(date)) + `</div>`;
@@ -549,7 +639,37 @@
         this.innerHTML = `<style>${CSS}</style><ha-card></ha-card>`;
         this._card = this.querySelector("ha-card");
       }
+      this._card.setAttribute("lang", this._lang() === "nb" ? "nb" : "en");
+      // a full paint replaces every control: note the focused one (its row, its kind, its data) and focus its new copy
+      const active = document.activeElement && this.contains(document.activeElement) ? document.activeElement : null;
+      let again = null;
+      if (active) {
+        const row = active.closest(".row");
+        again = { ev: row && row.dataset.ev, cls: [...active.classList].find((c) => ["more", "ch", "dev", "cancel", "tvbtn"].includes(c)),
+                  ch: active.dataset.ch, dev: active.dataset.dev };
+      }
       keepScroll(this, () => { this._card.innerHTML = inner; });
+      if (again && again.cls) {
+        const scope = again.ev ? [...this.querySelectorAll(".row")].find((r) => r.dataset.ev === again.ev) : this._card;
+        const el = scope && [...scope.querySelectorAll("." + again.cls)].find((e) =>
+          (!again.ch || e.dataset.ch === again.ch) && (!again.dev || e.dataset.dev === again.dev));
+        if (el) el.focus({ preventScroll: true });
+      }
+    }
+
+    /* the days change with the clock, not only with the sensors: at midnight (Today becomes Yesterday) and when a
+       fixture without a result passes four hours after kick-off. One timer for the soonest of those. */
+    _schedule(rows, fmt, now) {
+      if (this._tick) clearTimeout(this._tick);
+      const dayNow = fmt.day.format(new Date(now));
+      let next = now + 3600000;                                       // at most an hour, whatever happens
+      for (let step = 15 * 60000; step <= 3600000; step += 15 * 60000) {
+        if (fmt.day.format(new Date(now + step)) !== dayNow) { next = Math.min(next, now + step); break; }
+      }
+      for (const r of rows) {
+        if (!r.g.finished && !r.g.live && !r.g.awaiting && r.t + 4 * 3600000 > now) next = Math.min(next, r.t + 4 * 3600000 + 1000);
+      }
+      this._tick = setTimeout(() => { this._tick = null; this._sig = null; this._render(); }, Math.max(30000, next - now));
     }
 
     /* one game drawn again in place (opened, closed, asked for a device): the rest of the card is left as it is, so
@@ -582,8 +702,10 @@
       let time, timeCls = "", hs = "", as = "", scoreCls = "";
       if (g.live) { time = "LIVE"; timeCls = "live"; scoreCls = "live"; hs = num(g.home_score); as = num(g.away_score); }
       else if (g.finished) { time = "FT"; timeCls = "ft"; hs = num(g.home_score); as = num(g.away_score); }
-      else time = g.time || fmt.time.format(new Date(t));
+      else if (g.awaiting) { time = "–"; timeCls = "await"; hs = num(g.home_score); as = num(g.away_score); }
+      else time = g.time_known === false ? "--:--" : fmt.time.format(new Date(t));   // the viewer's zone and 12/24 h
       const subParts = [];
+      if (g.awaiting) subParts.push(this._t("awaiting"));
       if (this._config.show_venue && g.venue) subParts.push(g.venue);
       if (this._config.show_league && g.league) subParts.push(g.league);
       // the league's name is on the line underneath unless that is switched off; then the logo carries it
@@ -594,9 +716,9 @@
       this._rowArgs.set(key, [g, t, mine, fmt, first]);       // so the row can be drawn again on its own
       const goals = this._config.show_goals && Array.isArray(g.goals) ? g.goals : [];
       const open = this._open.has(key);
-      const word = goals.length ? (g.sport === "American Football" ? "Scoring" : "Goals") : "Details";
+      const word = goals.length ? this._t(g.sport === "American Football" ? "scoring" : "goals") : this._t("details");
       const more = `<span class="more" role="button" tabindex="0" aria-expanded="${open}"` +
-          ` aria-label="${esc(`${g.home} v ${g.away}: ${open ? "hide" : "show"} ${word.toLowerCase()}`)}">` +
+          ` aria-label="${esc(`${g.home} ${this._t("v")} ${g.away}: ${open ? this._t("hide") : this._t("show")} ${word.toLowerCase()}`)}">` +
           `${open ? `${word} &#9652;` : `${word} &#9662;`}</span>`;
       const subText = esc(subParts.join(" · "));
       const sub = `<div class="sub"><span class="subt">${subText}</span>${more}</div>`;
@@ -618,9 +740,9 @@
       // a finished game's highlights go where a coming game's channels are
       if (this._config.show_highlights && g.finished && /^https?:\/\//i.test(g.video || "")) {
         tv = `<div class="tv hl"><a href="${esc(g.video)}" target="_blank" rel="noopener noreferrer"` +
-          ` aria-label="${esc(`${g.home} v ${g.away}: highlights (opens in a new tab)`)}">` +
+          ` aria-label="${esc(this._t("highlightsLabel", g.home, g.away))}">` +
           `<svg viewBox="0 0 28 20" aria-hidden="true"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg>` +
-          `<span>Highlights</span></a></div>`;
+          `<span>${esc(this._t("highlights"))}</span></a></div>`;
       }
       return `<div class="row click${first ? " first" : ""}" data-ev="${esc(key)}">` +
         `<div class="time ${timeCls}">${esc(time)}${logo}</div>` +
@@ -645,7 +767,7 @@
           (x.note ? ` <span class="note">(${esc(x.note)})</span>` : "") +
           (x.assist ? `<span class="ast">${esc(x.assist)}</span>` : "") + `</span></div>`;
       }
-      if (g.goals_complete === false) html += `<div class="gap">Not every goal is listed for this game.</div>`;
+      if (g.goals_complete === false) html += `<div class="gap">${esc(this._t("notEveryGoal"))}</div>`;
       return html;
     }
 
@@ -655,26 +777,26 @@
       const key = String(g.event_id || (g.name || "") + g.date);
       const facts = [];
       const round = Number(g.round);
-      const comp = [g.league, round > 0 && round < 100 ? `Round ${round}` : ""].filter(Boolean).join(" · ");
-      if (comp) facts.push(["Competition", esc(comp)]);
+      const comp = [g.league, round > 0 && round < 100 ? this._t("round", round) : ""].filter(Boolean).join(" · ");
+      if (comp) facts.push([this._t("competition"), esc(comp)]);
       const when = new Date(t);
-      facts.push(["When", esc(`${fmt.head.format(when)}, ${g.time || fmt.time.format(when)}`)]);
+      facts.push([this._t("when"), esc(fmt.head.format(when) + (g.time_known === false ? "" : `, ${fmt.time.format(when)}`))]);
       const where = [g.venue, g.country].filter(Boolean).join(", ");
-      if (where) facts.push(["Venue", esc(where)]);
+      if (where) facts.push([this._t("venue"), esc(where)]);
       if (!g.finished && Array.isArray(g.tv) && g.tv.length) {
         const groups = [];
         for (const cc of this._config.tv_countries || ["UK", "NO"]) {
           const names = g.tv.filter((i) => i.country === cc).map((i) => i.channel);
           if (names.length) groups.push(`<span class="grp">${flag(cc)}${names.map((n) => this._chan(n, cc, key)).join(", ")}</span>`);
         }
-        if (groups.length) facts.push(["TV", groups.join("")]);
+        if (groups.length) facts.push([this._t("tv"), groups.join("")]);
       }
       if (g.event_id) {
         const url = `https://www.thesportsdb.com/event/${encodeURIComponent(g.event_id)}`;
-        facts.push(["More", `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Match page on TheSportsDB</a>`]);
+        facts.push([this._t("more"), `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(this._t("matchPage"))}</a>`]);
       }
       return `<div class="detail">${goals.length ? this._goals(g, goals) : ""}<div class="facts">` +
-        facts.map(([k, v]) => `<span class="k">${k}</span><span class="v">${v}</span>`).join("") + `</div></div>`;
+        facts.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="v">${v}</span>`).join("") + `</div></div>`;
     }
   }
 

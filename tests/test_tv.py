@@ -268,5 +268,15 @@ class TodayOnTv(unittest.TestCase):
         self.assertFalse(tv.guide_channel_wanted("RTE2.uk"))
 
 
+class UtcDates(unittest.TestCase):
+    def test_the_utc_dates_a_local_day_touches(self):
+        from zoneinfo import ZoneInfo
+        day = date(2026, 10, 18)
+        self.assertEqual(tv.utc_dates(day, ZoneInfo("Europe/Oslo")), ["2026-10-17", "2026-10-18"])
+        self.assertEqual(tv.utc_dates(day, ZoneInfo("Europe/London")), ["2026-10-17", "2026-10-18"])
+        self.assertEqual(tv.utc_dates(day, ZoneInfo("America/Los_Angeles")), ["2026-10-18", "2026-10-19"])
+        self.assertEqual(tv.utc_dates(day, ZoneInfo("UTC")), ["2026-10-18"])
+
+
 if __name__ == "__main__":
     unittest.main()

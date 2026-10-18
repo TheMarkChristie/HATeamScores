@@ -47,6 +47,9 @@ class EspnClient:
         if hit and monotonic() < hit[0]:
             return hit[1]
         async with self._lock:
+            hit = self._cache.get(path)                 # an identical request queued ahead of this one may have answered it
+            if hit and monotonic() < hit[0]:
+                return hit[1]
             wait = self._next_at - monotonic()
             if wait > 0:
                 await asyncio.sleep(wait)
@@ -61,8 +64,9 @@ class EspnClient:
                 self._next_at = monotonic() + INTERVAL
         if not isinstance(data, dict):
             raise EspnError(f"unexpected answer for {path}")
-        if len(self._cache) > 200:
-            self._cache.clear()
+        if len(self._cache) > 200:                      # drop the expired, not everything
+            now = monotonic()
+            self._cache = {k: v for k, v in self._cache.items() if v[0] > now}
         self._cache[path] = (monotonic() + keep_seconds, data)
         return data
 

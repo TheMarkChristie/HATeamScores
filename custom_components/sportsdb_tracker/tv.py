@@ -129,14 +129,14 @@ def _time(value: str | None) -> datetime | None:
 
 
 def parse_xmltv(data: bytes, country: str, now: datetime | None = None, days: int = 8) -> list[Programme]:
-    """The programmes of an XMLTV guide (gzipped or plain) that could be a game, from now to `days` ahead. Read as a
-    stream, so a 40,000-programme guide never sits in memory whole."""
-    raw = gzip.decompress(data) if data[:2] == b"\x1f\x8b" else data
+    """The programmes of an XMLTV guide (gzipped or plain) that could be a game, from now to `days` ahead. Decompressed
+    and parsed as one stream, so a 40,000-programme guide never sits in memory whole."""
+    source = gzip.GzipFile(fileobj=io.BytesIO(data)) if data[:2] == b"\x1f\x8b" else io.BytesIO(data)
     now = now or datetime.now(UTC)
     end = now + timedelta(days=days)
     names: dict[str, str] = {}
     out: list[Programme] = []
-    for _ev, el in ET.iterparse(io.BytesIO(raw), events=("end",)):
+    for _ev, el in ET.iterparse(source, events=("end",)):
         if el.tag == "channel":
             cid = el.get("id") or ""
             if guide_channel_wanted(cid):
@@ -347,6 +347,18 @@ def with_defaults(listings: list[dict[str, str]], league_id: str | None, league:
 
 
 # ---- today on TV ----------------------------------------------------------------------------------------------------
+
+def utc_dates(day: date, tz: tzinfo) -> list[str]:
+    """The UTC dates a local day touches (TheSportsDB files its games by UTC date): east of UTC the day before and the
+    day, west of it the day and the day after."""
+    first = datetime.combine(day, time.min, tz).astimezone(timezone.utc).date()
+    last = (datetime.combine(day + timedelta(days=1), time.min, tz) - timedelta(microseconds=1)).astimezone(timezone.utc).date()
+    out, d = [], first
+    while d <= last:
+        out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
 
 def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], day: date, tz: tzinfo,
                 defaults: Iterable[dict[str, str]] = ()) -> list[dict[str, Any]]:

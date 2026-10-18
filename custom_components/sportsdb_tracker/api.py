@@ -56,6 +56,9 @@ class SportsDBClient:
         url = f"{API_BASE}/{quote(key, safe='')}/{call}"
         interval = FREE_MIN_INTERVAL if key == DEFAULT_API_KEY else PREMIUM_MIN_INTERVAL
         async with self._lock:
+            hit = self._cache.get(cache_key)            # an identical request queued ahead of this one may have answered it
+            if hit and monotonic() < hit[0]:
+                return hit[1]
             data: Any = None
             for attempt in (1, 2):
                 wait = self._next_at - monotonic()
@@ -73,13 +76,17 @@ class SportsDBClient:
                             raise SportsDBError(f"HTTP {resp.status} for {call}")
                         data = await resp.json(content_type=None)
                         break
-                except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+                    # ValueError: a body that is not JSON (an HTML or PHP warning page sent with 200)
                     raise SportsDBError(f"{type(err).__name__}: {err}") from err
                 finally:
                     if monotonic() + interval > self._next_at:
                         self._next_at = monotonic() + interval
         if not isinstance(data, dict):
             raise SportsDBError(f"unexpected answer for {call}")
+        if len(self._cache) > 300:                      # most calls are asked once (one game, one date): drop the expired
+            now = monotonic()
+            self._cache = {k: v for k, v in self._cache.items() if v[0] > now}
         self._cache[cache_key] = (monotonic() + CACHE_SECONDS, data)
         return data
 

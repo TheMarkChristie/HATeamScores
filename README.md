@@ -62,7 +62,9 @@ Open **Settings > Devices & services > TheSportsDB Tracker**, find the team and 
 The integration brings its own card and registers it with your dashboards, so there is nothing more to install.
 It lists every tracked team's games by day: yesterday's results, today, then the fixtures of the next two weeks.
 Each row has the time, the two teams with their badges (your teams in bold), the score once it is in, and the venue
-and competition underneath. It is laid out for a phone first.
+and competition underneath. It is laid out for a phone first, each day its own panel. Times are shown in the viewer's
+time zone and 12/24-hour setting (the profile's), and the card's words are in English or Norwegian, from the user's
+language. A game past its end with no result yet shows "Awaiting result" until the score arrives.
 
 Add it to a dashboard: **Edit dashboard > Add card**, search for **Team Scores**, or use **Manual** and paste:
 

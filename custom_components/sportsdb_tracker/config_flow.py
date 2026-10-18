@@ -7,7 +7,16 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
+
 from homeassistant.util import slugify
 
 from .api import SportsDBError, get_client
@@ -27,6 +36,8 @@ from .const import (
     SPORT_LABEL,
 )
 from .model import Team, prefix_for_sport
+
+KEY_FIELD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))   # the key is never shown in a form or screenshot
 
 ANY_SPORT = "any"
 SPORTS = ["Soccer", "Ice Hockey", "American Football", "Basketball", "Rugby", "Baseball", "Cricket", "Australian Football",
@@ -82,7 +93,7 @@ class SportsDBConfigFlow(ConfigFlow, domain=DOMAIN):
             vol.Required("search", default=self._search): str,
             vol.Optional("sport", default=ANY_SPORT): SelectSelector(
                 SelectSelectorConfig(options=_sport_options(), mode=SelectSelectorMode.DROPDOWN)),
-            vol.Optional(CONF_API_KEY, default=self._default_key()): str,
+            vol.Optional(CONF_API_KEY, default=self._default_key()): KEY_FIELD,
         })
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
@@ -135,7 +146,7 @@ class SportsDBOptionsFlow(OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
         current = {**self.config_entry.data, **self.config_entry.options}
         schema = vol.Schema({
-            vol.Optional(CONF_API_KEY, default=current.get(CONF_API_KEY) or DEFAULT_API_KEY): str,
+            vol.Optional(CONF_API_KEY, default=current.get(CONF_API_KEY) or DEFAULT_API_KEY): KEY_FIELD,
             vol.Optional(CONF_RESULTS_HOURS, default=int(current.get(CONF_RESULTS_HOURS, DEFAULT_RESULTS_HOURS))):
                 vol.All(vol.Coerce(int), vol.Range(min=0, max=168)),
             vol.Optional(CONF_PRE_HOURS, default=int(current.get(CONF_PRE_HOURS, DEFAULT_PRE_HOURS))):

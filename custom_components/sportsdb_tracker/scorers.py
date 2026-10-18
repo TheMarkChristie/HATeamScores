@@ -114,7 +114,7 @@ def parse_espn_summary(summary: dict[str, Any], sport: str | None) -> tuple[list
             kind = str((k.get("type") or {}).get("text") or "")
             if not k.get("scoringPlay") and not kind.lower().startswith(("goal", "penalty - scored", "own goal")):
                 continue
-            people = [p.get("athlete", {}).get("displayName", "") for p in k.get("participants") or []]
+            people = [(p.get("athlete") or {}).get("displayName", "") for p in k.get("participants") or []]
             note = "pen" if "penalty" in kind.lower() else "og" if "own goal" in kind.lower() else ""
             goals.append({"time": str((k.get("clock") or {}).get("displayValue") or ""),
                           "side": sides.get(str((k.get("team") or {}).get("id") or ""), ""),
@@ -123,7 +123,7 @@ def parse_espn_summary(summary: dict[str, Any], sport: str | None) -> tuple[list
         for p in summary.get("plays") or []:
             if not p.get("scoringPlay"):
                 continue
-            people = [x.get("athlete", {}).get("displayName", "") for x in p.get("participants") or []]
+            people = [(x.get("athlete") or {}).get("displayName", "") for x in p.get("participants") or []]
             clock = (p.get("clock") or {}).get("displayValue") or ""
             goals.append({"time": f"{_period(sport, (p.get('period') or {}).get('number'))} {clock}".strip(),
                           "side": sides.get(str((p.get("team") or {}).get("id") or ""), ""),

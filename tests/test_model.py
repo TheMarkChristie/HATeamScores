@@ -140,8 +140,9 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(state, "PRE")
         self.assertEqual(a["kickoff_in"], "Today 15:00")
         self.assertEqual((a["team_homeaway"], a["opponent_name"], a["location"]), ("home", "Guildford Flames", "Braehead Arena, Scotland"))
-        self.assertEqual(a["last_game"]["name"], "Manchester Storm vs Glasgow Clan")
-        self.assertIsNone(a["next_game"])
+        self.assertEqual([r["name"] for r in a["results"]], ["Manchester Storm vs Glasgow Clan"])
+        self.assertNotIn("next_game", a)
+        self.assertNotIn("last_update", a, "no time stamp that changes on every refresh")
         self.assertEqual(a["date"], "2026-10-11T15:00:00+00:00")
         # kick-off: in play, no score on the free key
         now = T("2026-10-11T15:05:00")
@@ -154,6 +155,8 @@ class LifecycleTests(unittest.TestCase):
         now = T("2026-10-11T18:30:00")
         state, a = self.show(now)
         self.assertEqual((state, a["clock"]), ("POST", "Awaiting result"))
+        game = a["fixtures"][0]
+        self.assertEqual((game["live"], game["awaiting"], game["finished"]), (False, True, False), "over by the clock, no result")
         # the result lands
         now = T("2026-10-11T19:00:00")
         model.absorb_lookup(self.mem, model.Event.parse(dict(HOME_NS, strStatus="FT", intHomeScore="4", intAwayScore="2")), now)
@@ -168,18 +171,20 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(self.mem.tracked.id, "2537340")
         state, a = self.show(now)
         self.assertEqual(state, "POST", "the result stays for 24 hours")
-        self.assertEqual(a["next_game"]["name"], "Fife Flyers vs Glasgow Clan")
+        self.assertEqual([f["name"] for f in a["fixtures"]], ["Fife Flyers vs Glasgow Clan"])
         # the lists for the card: both results newest first, the one coming fixture
         self.assertEqual([r["name"] for r in a["results"]], ["Glasgow Clan vs Guildford Flames", "Manchester Storm vs Glasgow Clan"])
         self.assertEqual([f["name"] for f in a["fixtures"]], ["Fife Flyers vs Glasgow Clan"])
-        self.assertEqual((a["results"][0]["finished"], a["results"][0]["home_score"], a["results"][0]["day"], a["results"][0]["time"]),
-                         (True, 4, "2026-10-11", "15:00"))
+        self.assertEqual((a["results"][0]["finished"], a["results"][0]["home_score"], a["results"][0]["date"], a["results"][0]["time_known"]),
+                         (True, 4, "2026-10-11T15:00:00+00:00", True))
+        for key in ("time", "day", "when", "status"):
+            self.assertNotIn(key, a["results"][0], "the card formats the time itself, in the viewer's zone")
         self.assertEqual((a["fixtures"][0]["finished"], a["fixtures"][0]["live"], a["fixtures"][0]["home_badge"]), (False, False, None))
         # a day later the next fixture takes over
         now = T("2026-10-12T18:00:00")
         state, a = self.show(now)
         self.assertEqual((state, a["team_homeaway"], a["kickoff_in"]), ("PRE", "away", "Sun 18 Oct 18:00"))
-        self.assertEqual(a["last_game"]["home_score"], 4)
+        self.assertEqual(a["results"][0]["home_score"], 4)
 
     def test_next_fixture_takes_over_before_kick_off(self):
         now = T("2026-10-11T19:00:00")
@@ -229,3 +234,21 @@ class LifecycleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Trimmed(unittest.TestCase):
+    """What the card does not draw is not sent: scorers only for recent games."""
+
+    def test_goals_only_on_recent_results(self):
+        team = model.Team.parse(CLAN)
+        mem = model.Memory(seeded=True)
+        game = model.Event.parse(AWAY_FT)                      # 23 Sep
+        game.finished_at = T("2026-09-23T21:00:00")
+        mem.recent, mem.last = [game], game
+        mem.scorers[game.id] = {"goals": [{"time": "12'", "side": "home", "player": "A", "assist": "", "note": ""}], "complete": True}
+        _, fresh = model.present(team, mem, T("2026-09-24T09:00:00"), 24, 6)
+        _, old = model.present(team, mem, T("2026-09-30T09:00:00"), 24, 6)
+        self.assertEqual(len(fresh["results"][0]["goals"]), 1)
+        self.assertEqual(old["results"][0]["goals"], [], "older than SCORERS_DAYS: the score stays, the scorers go")
+        self.assertEqual(old["results"][0]["home_score"], 2)
+

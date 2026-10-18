@@ -32,6 +32,7 @@ from .const import (
     STORAGE_VERSION,
     SPORTSDB_TV_HOURS,
     STARTUP_FOLLOW_UP_MINUTES,
+    TEAM_CHECK_HOURS,
     TV_DAYS_AHEAD,
     UPDATE_MINUTES_IDLE,
     UPDATE_MINUTES_LIVE,
@@ -50,7 +51,7 @@ from .model import (
     video_url,
 )
 from .scorers import SCORER_SPORTS, espn_slug, find_espn_event, parse_espn_summary, scoreboard_dates, timeline_goals
-from .tv import guide_listings, merge, pair_needles, sportsdb_listings, with_defaults
+from .tv import STARTS_BY, STARTS_FROM, guide_listings, merge, pair_needles, sportsdb_listings, with_defaults
 
 _LOGGER = logging.getLogger(__name__)
 RETRY_MINUTES = 3
@@ -69,6 +70,8 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         self.memory = Memory()
         self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._team_fresh = False
+        self._team_checked: datetime | None = None
+        self._failing = False
         self._saved: dict[str, Any] | None = None
 
     def _setting(self, key: str, default: Any) -> Any:
@@ -97,6 +100,9 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
             self.memory = Memory.from_dict(data.get("memory") or {})
             if data.get("team"):
                 self.team = Team.from_dict(data["team"])
+                self._team_fresh = True               # no lookup at start-up; the follow-up refresh checks it
+                checked = data.get("team_checked")
+                self._team_checked = datetime.fromisoformat(checked) if checked else None
         except (KeyError, TypeError, ValueError) as err:
             _LOGGER.warning("%s: stored fixtures could not be read (%s); starting afresh", self.name, err)
             self.memory = Memory()
@@ -108,11 +114,14 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         failed = False
         startup = self.data is None
         try:
-            if not self._team_fresh:
+            team_due = not self._team_fresh or (not startup and (
+                self._team_checked is None or now - self._team_checked >= timedelta(hours=TEAM_CHECK_HOURS)))
+            if team_due:
                 raw = await self.client.lookup_team(key, self.team.id)
                 if raw:
                     self.team = Team.parse(raw)
                 self._team_fresh = True
+                self._team_checked = now
             if needs_lookup(mem, now) and mem.tracked is not None:
                 raw = await self.client.lookup_event(key, mem.tracked.id)
                 absorb_lookup(mem, Event.parse(raw) if raw else None, now)
@@ -125,12 +134,23 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         except SportsDBError as err:
             if mem.tracked is None and mem.last is None and not self._team_fresh:
                 raise UpdateFailed(f"TheSportsDB: {err}") from err
-            _LOGGER.warning("%s: TheSportsDB: %s (keeping the last known fixtures)", self.name, err)
+            # once per outage at warning level; the retries every few minutes are debug
+            (_LOGGER.debug if self._failing else _LOGGER.warning)(
+                "%s: TheSportsDB: %s (keeping the last known fixtures)", self.name, err)
+            self._failing = True
             failed = True
-        await self._update_tv(mem, now, key)
-        await self._update_scorers(mem, now, key)
-        await self._update_highlights(mem, now, key)
-        data = {"memory": mem.to_dict(), "team": self.team.to_dict()}
+        else:
+            if self._failing:
+                _LOGGER.info("%s: TheSportsDB answers again", self.name)
+            self._failing = False
+        # the extras: a surprise in one (an odd ESPN answer, say) must not cost the team its fixture and result
+        for step in (self._update_tv, self._update_scorers, self._update_highlights):
+            try:
+                await step(mem, now, key)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("%s: %s failed; the fixture and result are kept", self.name, step.__name__)
+        data = {"memory": mem.to_dict(), "team": self.team.to_dict(),
+                "team_checked": self._team_checked.isoformat() if self._team_checked else None}
         if data != self._saved:
             await self._store.async_save(data)
             self._saved = data
@@ -154,14 +174,15 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         broadcaster list twice a day per game (not on the refresh at start-up, so Home Assistant is not held up). A guide
         that has rotated past a game, or failed to download, keeps what was found earlier."""
         horizon = now + timedelta(days=TV_DAYS_AHEAD)
-        programmes = get_guide(self.hass).programmes()      # never waits: the guides download in the background
+        guide = get_guide(self.hass)                         # never waits: the guides download in the background
         first = self.data is None
         for e in mem.upcoming:
             if e.start is None or not (now - timedelta(hours=4) <= e.start <= horizon):
                 continue
             before = mem.tv.get(e.id) or []
             home, away = pair_needles(e.home_name, e.away_name, e.sport, self._extra_names(e.home_id), self._extra_names(e.away_id))
-            found = guide_listings(e.start, home, away, programmes) or [i for i in before if i.get("source") == "guide"]
+            near = guide.window(e.start - STARTS_FROM, e.start + STARTS_BY)    # the programmes around kick-off only
+            found = guide_listings(e.start, home, away, near) or [i for i in before if i.get("source") == "guide"]
             sportsdb = [i for i in before if i.get("source") == "thesportsdb"]
             asked = mem.tv_checked.get(e.id)
             stale = asked is None or now - datetime.fromisoformat(asked) >= timedelta(hours=SPORTSDB_TV_HOURS)

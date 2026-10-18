@@ -27,6 +27,7 @@ from .const import (
     LOOKUP_GRACE_HOURS,
     NEXT_CHECK_MINUTES,
     RESULT_WAIT_MINUTES,
+    SCORERS_DAYS,
     SPORT_PREFIX,
     STATE_IN,
     STATE_NOT_FOUND,
@@ -403,23 +404,26 @@ def _is_home(team: Team, game: Event) -> bool:
 def _brief(game: Event | None, now: datetime, to_local: ToLocal, tv: dict[str, list[dict[str, str]]] | None = None,
            scorers: dict[str, dict[str, Any]] | None = None,
            highlights: dict[str, dict[str, str]] | None = None) -> dict[str, Any] | None:
-    """One game for the card: both sides with badges, where and when, the score once it is in."""
+    """One game for the card: both sides with badges, where and when, the score once it is in. The kick-off is the
+    instant in date; the card formats it in the viewer's own time zone and 12/24-hour setting (time_known false: the
+    day only). awaiting: over by the clock with no result posted yet. Who scored is kept for the last SCORERS_DAYS
+    only; older results keep their score."""
     if game is None:
         return None
-    local = to_local(game.start) if game.start else None
     end = game.expected_end
     finished = game.finished_at is not None or game.finished(now)
-    return {"event_id": game.id, "name": game.name, "date": _iso(game.start), "day": local.date().isoformat() if local else None,
-            "time": f"{local:%H:%M}" if local and game.time_known else None,
-            "when": kickoff_text(local, to_local(now), game.time_known) if local else None,
+    over = bool(game.start and not finished and now >= game.start and end is not None and now >= end + timedelta(minutes=RESULT_WAIT_MINUTES))
+    recent = game.start is not None and now - game.start <= timedelta(days=SCORERS_DAYS)
+    score_data = ((scorers or {}).get(game.id) or {}) if recent else {}
+    return {"event_id": game.id, "name": game.name, "date": _iso(game.start), "time_known": game.time_known,
             "venue": game.venue, "country": game.country, "league": game.league, "league_logo": game.league_badge,
             "round": game.round, "sport": game.sport, "home_id": game.home_id, "home": game.home_name, "home_badge": game.home_badge,
             "away_id": game.away_id, "away": game.away_name, "away_badge": game.away_badge,
-            "home_score": game.home_score, "away_score": game.away_score, "status": game.status, "finished": finished,
-            "live": bool(game.start and not finished and now >= game.start and (end is None or now < end + timedelta(minutes=RESULT_WAIT_MINUTES))),
+            "home_score": game.home_score, "away_score": game.away_score, "finished": finished,
+            "live": bool(game.start and not finished and now >= game.start and not over), "awaiting": over,
             "tv": [] if finished else list((tv or {}).get(game.id) or []),
-            "goals": list(((scorers or {}).get(game.id) or {}).get("goals") or []),
-            "goals_complete": bool(((scorers or {}).get(game.id) or {}).get("complete", True)),
+            "goals": list(score_data.get("goals") or []),
+            "goals_complete": bool(score_data.get("complete", True)),
             "video": game_video(game, highlights) if finished else None}
 
 
@@ -493,11 +497,9 @@ def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hour
             "tv_network": ", ".join(i["channel"] for i in mem.tv.get(game.id) or []) or None,
             "tv": list(mem.tv.get(game.id) or []),
         })
-    attrs["next_game"] = _brief(tracked, now, loc, mem.tv, mem.scorers, mem.highlights) if state in (STATE_POST, STATE_NOT_FOUND) and tracked is not None and game is not tracked else None
-    attrs["last_game"] = _brief(last, now, loc, mem.tv, mem.scorers, mem.highlights) if state in (STATE_PRE, STATE_IN, STATE_NOT_FOUND) and last is not None else None
-    # every game the integration knows, for a card that lays them out by day
+    # every game the integration knows, for a card that lays them out by day (no separate next/last game: they are in
+    # these lists; and no last_update time, which made every refresh a state write when nothing had changed)
     attrs["fixtures"] = [_brief(e, now, loc, mem.tv, mem.scorers, mem.highlights) for e in mem.upcoming if e.start is not None]
     attrs["results"] = [_brief(e, now, loc, mem.tv, mem.scorers, mem.highlights) for e in mem.recent]
-    attrs["last_update"] = now.isoformat()
     attrs["attribution"] = ATTRIBUTION
     return state, attrs
