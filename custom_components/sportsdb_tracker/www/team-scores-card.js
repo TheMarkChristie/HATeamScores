@@ -38,7 +38,7 @@
       today: "Today", yesterday: "Yesterday", tomorrow: "Tomorrow", details: "Details", goals: "Goals", scoring: "Scoring",
       show: "show", hide: "hide", v: "v", onTvToday: "On TV today", back: "Back to scores",
       onTvTitle: "Every game on UK or Norwegian TV today", competition: "Competition", round: (n) => `Round ${n}`,
-      when: "When", venue: "Venue", tv: "TV", more: "More", matchPage: "Match page on TheSportsDB", highlights: "Highlights",
+      when: "When", venue: "Venue", tv: "TV", highlights: "Highlights",
       highlightsLabel: (h, a) => `${h} v ${a}: highlights (opens in a new tab)`, notEveryGoal: "Not every goal is listed for this game.",
       awaiting: "Awaiting result", noGames: (n) => `No games in the next ${n} days.`, loadingGuides: "Loading the TV guides...",
       guidesLoading: "The TV guides are still downloading; trying again shortly.",
@@ -54,7 +54,7 @@
       today: "I dag", yesterday: "I går", tomorrow: "I morgen", details: "Detaljer", goals: "Mål", scoring: "Poeng",
       show: "vis", hide: "skjul", v: "mot", onTvToday: "På TV i dag", back: "Tilbake til resultatene",
       onTvTitle: "Alle kamper på britisk eller norsk TV i dag", competition: "Turnering", round: (n) => `Runde ${n}`,
-      when: "Når", venue: "Arena", tv: "TV", more: "Mer", matchPage: "Kampsiden på TheSportsDB", highlights: "Høydepunkter",
+      when: "Når", venue: "Arena", tv: "TV", highlights: "Høydepunkter",
       highlightsLabel: (h, a) => `${h} mot ${a}: høydepunkter (åpnes i en ny fane)`, notEveryGoal: "Ikke alle målene er med for denne kampen.",
       awaiting: "Venter på resultat", noGames: (n) => `Ingen kamper de neste ${n} dagene.`, loadingGuides: "Henter TV-guidene...",
       guidesLoading: "TV-guidene lastes fortsatt ned; prøver igjen straks.",
@@ -454,10 +454,14 @@
       if (tv.status === "error") return html + `<div class="empty">${esc(this._t("tvError", tv.message || ""))}</div>`;
       if (tv.day && tv.day !== fmt.day.format(new Date()) && !this._tvLoading) this._fetchTv();   // the day moved on
       const wanted = this._config.tv_countries || ["UK", "NO"];
-      const games = (tv.games || []).filter((g) => (g.tv || []).some((i) => wanted.includes(i.country)));
+      const now = Date.now();
+      const games = (tv.games || []).filter((g) => (g.tv || []).some((i) => wanted.includes(i.country)) &&
+        !(g.ends && Date.parse(g.ends) <= now));                      // over: not on TV any more
+      this._tvNext = games.reduce((n, g) => Math.min(n, g.ends ? Date.parse(g.ends) : Infinity,
+        Date.parse(g.date) > now ? Date.parse(g.date) : Infinity), Infinity);
       if (!games.length) html += `<div class="empty">${esc(this._t("nothingOnTv"))}</div>`;
       html += `<div class="tvlist">`;
-      games.forEach((g, i) => { html += this._row(Object.assign({}, g, { finished: false, live: false, goals: [] }), Date.parse(g.date), mine, fmt, i === 0); });
+      games.forEach((g, i) => { html += this._row(Object.assign({}, g, { finished: false, live: Date.parse(g.date) <= now, goals: [] }), Date.parse(g.date), mine, fmt, i === 0); });
       html += `</div>`;
       if (tv.failed && tv.failed.length) html += `<div class="empty" style="font-size:0.8em" role="status">${esc(this._t("failedSports", tv.failed.join(", ")))}</div>`;
       if (tv.premium === false) html += `<div class="empty" style="font-size:0.8em">${esc(this._t("freeKey"))}</div>`;
@@ -613,6 +617,11 @@
       if (this._config.title || button) html += `<div class="bar">${this._config.title ? `<div class="head">${esc(this._config.title)}</div>` : ""}${button}</div>`;
       if (this._mode === "tv") {
         this._paint(html + this._tvView(mine, fmt));
+        if (this._tick) clearTimeout(this._tick);
+        if (this._tvNext && this._tvNext !== Infinity) {
+          this._tick = setTimeout(() => { this._tick = null; this._sig = null; this._render(); },
+            Math.min(3600000, Math.max(30000, this._tvNext - Date.now() + 1000)));
+        }
         return;
       }
       if (!rows.length) html += `<div class="empty">${esc(this._t("noGames", this._config.days_ahead))}</div>`;
@@ -772,7 +781,7 @@
     }
 
     /* what tapping a game opens: who scored, then the competition and round, when, where, every channel (not only the
-       first three per country), the match page on TheSportsDB */
+       first three per country) */
     _details(g, goals, t, fmt) {
       const key = String(g.event_id || (g.name || "") + g.date);
       const facts = [];
@@ -790,10 +799,6 @@
           if (names.length) groups.push(`<span class="grp">${flag(cc)}${names.map((n) => this._chan(n, cc, key)).join(", ")}</span>`);
         }
         if (groups.length) facts.push([this._t("tv"), groups.join("")]);
-      }
-      if (g.event_id) {
-        const url = `https://www.thesportsdb.com/event/${encodeURIComponent(g.event_id)}`;
-        facts.push([this._t("more"), `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(this._t("matchPage"))}</a>`]);
       }
       return `<div class="detail">${goals.length ? this._goals(g, goals) : ""}<div class="facts">` +
         facts.map(([k, v]) => `<span class="k">${esc(k)}</span><span class="v">${v}</span>`).join("") + `</div></div>`;

@@ -140,7 +140,8 @@ league, in time order: the teams with their badges, the competition, and the cha
 screen the list flows into columns). Press it again (it then reads **Back to scores**) to return. The list is worked
 out by the integration when the button is pressed, and again every ten minutes while it is open: TheSportsDB's games of
 the day (football, ice hockey, American football, basketball, rugby and handball) are matched to the UK and Norwegian
-guides with the same rule as a fixture's channels, so only live broadcasts count, not replays or highlights. The full
+guides with the same rule as a fixture's channels, so only live broadcasts count, not replays or highlights. Only what
+is on now (marked LIVE) or still to come today is listed; a game drops off once its usual length has passed. The full
 list needs a premium TheSportsDB key; the free key returns only a few games a day.
 
 ### A game's details and who scored
@@ -148,7 +149,7 @@ list needs a premium TheSportsDB key; the free key returns only a few games a da
 Tap any game (or press Enter on the **Details** or **Goals** marker at the end of its venue line) and it opens: the goals
 in match order (the minute, the scoring side's badge, the scorer and, underneath, the assist), then the competition and
 round, the day and time, the venue, every channel showing it (the line under the game shows the first three per
-country), and a link to the match page on TheSportsDB. Ice hockey shows the period and clock (`P2 13:13`); the NFL shows
+country). Ice hockey shows the period and clock (`P2 13:13`); the NFL shows
 its scoring plays. A game in play lists the goals so far. The marker reads **Goals** when there are goals to list.
 
 After a restart the first update leaves out the channels, scorers and highlights so Home Assistant starts quickly; the

@@ -263,6 +263,17 @@ class TodayOnTv(unittest.TestCase):
         self.assertEqual([(g["event_id"], [(i["country"], i["channel"]) for i in g["tv"]]) for g in games],
                          [("7", [("UK", "DAZN"), ("NO", "DAZN")])])
 
+    def test_only_what_is_on_now_or_still_to_come(self):
+        from zoneinfo import ZoneInfo
+        events = [self.ev("1", "2026-10-18T13:00:00", "Leeds United", "Manchester United"),          # 13:00-15:00 UTC
+                  self.ev("5", "2026-10-18T11:00:00", "Chelsea Women", "Tottenham Women")]             # 11:00-13:00 UTC
+        oslo = ZoneInfo("Europe/Oslo")
+        games = tv.today_on_tv(events, self.progs, date(2026, 10, 18), oslo, now=T("2026-10-18T13:30:00"))
+        self.assertEqual([(g["event_id"], g["live"]) for g in games], [("1", True)], "the WSL game is over; Leeds is on now")
+        games = tv.today_on_tv(events, self.progs, date(2026, 10, 18), oslo, now=T("2026-10-18T10:00:00"))
+        self.assertEqual([(g["event_id"], g["live"]) for g in games], [("5", False), ("1", False)], "both still to come")
+        self.assertEqual(games[1]["ends"], "2026-10-18T15:00:00+00:00")
+
     def test_irish_channels_are_not_uk(self):
         self.assertFalse(tv.guide_channel_wanted("Virgin.Media.Two.uk"))
         self.assertFalse(tv.guide_channel_wanted("RTE2.uk"))

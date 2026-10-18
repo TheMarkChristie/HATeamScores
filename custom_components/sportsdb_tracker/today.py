@@ -74,7 +74,7 @@ class TodayStore:
             return {"day": today.isoformat(), "games": [], "status": "guides_loading"}
         key = _key(self._hass)
         events, failed = await self._events(key, utc_dates(today, tz))
-        games = await self._hass.async_add_executor_job(today_on_tv, events, programmes, today, tz, DEFAULT_TV)
+        games = await self._hass.async_add_executor_job(today_on_tv, events, programmes, today, tz, DEFAULT_TV, dt_util.utcnow())
         return {"day": today.isoformat(), "games": games, "status": "ok", "premium": key != DEFAULT_API_KEY,
                 "failed": failed}
 

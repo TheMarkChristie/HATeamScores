@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone, tzinfo
 from typing import Any, Iterable
 
+from .const import DEFAULT_GAME_MINUTES, GAME_MINUTES
+
 UTC = timezone.utc
 
 # guide programmes that overlap kick-off: starting no later than this after it, and still on this long after it
@@ -361,10 +363,12 @@ def utc_dates(day: date, tz: tzinfo) -> list[str]:
 
 
 def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], day: date, tz: tzinfo,
-                defaults: Iterable[dict[str, str]] = ()) -> list[dict[str, Any]]:
+                defaults: Iterable[dict[str, str]] = (), now: datetime | None = None) -> list[dict[str, Any]]:
     """Every game of the local `day` (TheSportsDB's eventsday records, any sport) that a UK or Norwegian channel shows
     live: on air at kick-off and naming both teams, the same rule as a fixture's channels, or in a league whose usual
-    channel is known (`defaults`, as for a fixture). Soonest first, each game once."""
+    channel is known (`defaults`, as for a fixture). Soonest first, each game once. With `now`, only what is still to
+    come or on now (Mark: "only show things that are live or upcoming"): a game is over at its kick-off plus its sport's
+    usual length; each game carries that end and whether it is on now."""
     defaults = list(defaults)
     lo = datetime.combine(day, time.min, tz).astimezone(UTC) - STARTS_FROM
     hi = datetime.combine(day + timedelta(days=1), time.min, tz).astimezone(UTC)
@@ -383,6 +387,9 @@ def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], d
         start = (start if start.tzinfo else start.replace(tzinfo=UTC)).astimezone(UTC)
         if start.astimezone(tz).date() != day:
             continue
+        ends = start + timedelta(minutes=GAME_MINUTES.get(str(e.get("strSport") or ""), DEFAULT_GAME_MINUTES))
+        if now is not None and now >= ends:
+            continue                                          # over: not on TV any more
         seen.add(eid)
         home, away = str(e.get("strHomeTeam") or ""), str(e.get("strAwayTeam") or "")
         if not home or not away:
@@ -395,5 +402,6 @@ def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], d
             out.append({"event_id": eid, "date": start.isoformat(), "sport": e.get("strSport"), "league": e.get("strLeague"),
                         "league_logo": e.get("strLeagueBadge"), "home": home, "away": away, "home_id": e.get("idHomeTeam"),
                         "away_id": e.get("idAwayTeam"), "home_badge": e.get("strHomeTeamBadge"), "away_badge": e.get("strAwayTeamBadge"),
-                        "round": e.get("intRound"), "venue": e.get("strVenue"), "country": e.get("strCountry"), "tv": found})
+                        "round": e.get("intRound"), "venue": e.get("strVenue"), "country": e.get("strCountry"), "tv": found,
+                        "ends": ends.isoformat(), "live": now is not None and start <= now})
     return sorted(out, key=lambda g: g["date"])
