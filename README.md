@@ -82,6 +82,7 @@ results_days: 1
 | `entities` | all teams | Or an explicit list of sensors |
 | `show_venue` | true | The venue under each row |
 | `show_league` | true | The competition under each row |
+| `show_league_logo` | true | The competition's logo under the time |
 | `show_tv` | true | The UK and Norwegian TV channels under each coming game |
 | `tv_countries` | `[UK, NO]` | Which countries' channels to show, in this order |
 | `layout` | `columns` | `columns` puts the days side by side when the card is wide enough (a tablet or desktop); `list` keeps one long column. A phone always shows one column |

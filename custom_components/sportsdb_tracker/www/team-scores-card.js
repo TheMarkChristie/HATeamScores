@@ -11,6 +11,7 @@
  * entities: [sensor.x, ...]      or an explicit list
  * show_venue: true
  * show_league: true
+ * show_league_logo: true       the competition's logo under the time
  * show_tv: true               the UK and Norwegian channels under each coming game
  * layout: columns             columns: the days side by side when the card is wide enough; list: one long column
  * day_width: 300              the narrowest a day column may be, in pixels
@@ -47,6 +48,7 @@
     .row.first { border-top: none; }
     .time { grid-area: time; align-self: start; padding-top: 3px; font-size: 0.9em; color: var(--secondary-text-color);
             font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .time .lg { display: block; width: 22px; height: 22px; margin-top: 7px; object-fit: contain; }
     .time.live { color: var(--error-color, #db4437); font-weight: 600; }
     .time.ft { font-weight: 600; }
     .side { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 0.95em; color: var(--primary-text-color); }
@@ -113,6 +115,11 @@
       '<path d="M6 0h4v16h-4zM0 6h22v4h-22z" fill="#fff"/><path d="M7 0h2v16h-2zM0 7h22v2h-22z" fill="#00205B"/></svg>' },
   };
   const flag = (cc) => (FLAGS[cc] ? FLAGS[cc].svg : `<span>${esc(cc)}</span>`);
+
+  /* TheSportsDB serves a small copy of each image at <url>/tiny */
+  function tiny(url) {
+    return /^https?:\/\/[^/]*thesportsdb\.com\/images\/.+\.(png|jpe?g)$/i.test(url) ? url + "/tiny" : url;
+  }
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -203,7 +210,7 @@
 
     setConfig(config) {
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
-                                     show_venue: true, show_league: true, show_tv: true, tv_countries: ["UK", "NO"],
+                                     show_venue: true, show_league: true, show_league_logo: true, show_tv: true, tv_countries: ["UK", "NO"],
                                      layout: "columns", day_width: 300, show_goals: true, show_tv_button: true }, config || {});
       this._sig = null;
       if (this._hass) this._render();
@@ -367,6 +374,10 @@
       const subParts = [];
       if (this._config.show_venue && g.venue) subParts.push(g.venue);
       if (this._config.show_league && g.league) subParts.push(g.league);
+      // the league's name is on the line underneath unless that is switched off; then the logo carries it
+      const logo = this._config.show_league_logo && g.league_logo
+        ? `<img class="lg" src="${esc(tiny(g.league_logo))}" alt="${this._config.show_league ? "" : esc(g.league || "")}"` +
+          ` title="${esc(g.league || "")}" loading="lazy">` : "";
       const key = String(g.event_id || (g.name || "") + g.date);
       const goals = this._config.show_goals && Array.isArray(g.goals) ? g.goals : [];
       const open = goals.length > 0 && this._open.has(key);
@@ -389,7 +400,7 @@
       const attrs = goals.length ? ` data-ev="${esc(key)}" role="button" tabindex="0" aria-expanded="${open}"` +
         ` aria-label="${esc(`${g.home} v ${g.away}: ${open ? "hide" : "show"} ${word.toLowerCase()}`)}"` : "";
       return `<div class="row${first ? " first" : ""}${goals.length ? " click" : ""}"${attrs}>` +
-        `<div class="time ${timeCls}">${esc(time)}</div>` +
+        `<div class="time ${timeCls}">${esc(time)}${logo}</div>` +
         side("home", g.home_id, g.home, g.home_badge, homeLost) +
         `<div class="score hs ${scoreCls}${homeLost ? " loser" : ""}">${hs}</div>` +
         side("away", g.away_id, g.away, g.away_badge, awayLost) +
