@@ -64,11 +64,21 @@
     .sub { grid-area: sub; min-width: 0; font-size: 0.78em; color: var(--secondary-text-color); overflow: hidden;
            text-overflow: ellipsis; white-space: nowrap; }
     .tv { grid-area: tv; min-width: 0; font-size: 0.78em; color: var(--primary-text-color); line-height: 1.6; }
-    .tv .cc { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: 0.85em; font-weight: 600;
-              letter-spacing: 0.04em; color: var(--secondary-text-color); border: 1px solid var(--divider-color, rgba(127,127,127,0.35)); }
+    .tv .flag { display: inline-block; width: 18px; height: 12px; margin-right: 5px; vertical-align: -1px; border-radius: 2px;
+                box-shadow: 0 0 0 1px rgba(127,127,127,0.35); }
     .tv .grp { display: inline; margin-right: 10px; }
     .empty { padding: 12px 16px; color: var(--secondary-text-color); }
   `;
+
+  /* the flag beside each country's channels: the saltire for the UK listings (the household's home there is Scotland),
+   * the Norwegian cross for Norway. Drawn inline, so nothing is fetched and every device shows the same thing. */
+  const FLAGS = {
+    UK: { label: "Scotland", svg: '<svg class="flag" viewBox="0 0 30 20" role="img" aria-label="Scotland"><rect width="30" height="20" fill="#0065BD"/>' +
+      '<path d="M0 0L30 20M30 0L0 20" stroke="#fff" stroke-width="4"/></svg>' },
+    NO: { label: "Norway", svg: '<svg class="flag" viewBox="0 0 22 16" role="img" aria-label="Norway"><rect width="22" height="16" fill="#BA0C2F"/>' +
+      '<path d="M6 0h4v16h-4zM0 6h22v4h-22z" fill="#fff"/><path d="M7 0h2v16h-2zM0 7h22v2h-22z" fill="#00205B"/></svg>' },
+  };
+  const flag = (cc) => (FLAGS[cc] ? FLAGS[cc].svg : `<span>${esc(cc)}</span>`);
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -240,7 +250,7 @@
           const names = g.tv.filter((i) => i.country === cc).map((i) => i.channel);
           if (!names.length) continue;
           const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
-          groups.push(`<span class="grp"><span class="cc">${esc(cc)}</span>${esc(shown)}</span>`);
+          groups.push(`<span class="grp">${flag(cc)}${esc(shown)}</span>`);
         }
         if (groups.length) tv = `<div class="tv">${groups.join("")}</div>`;
       }

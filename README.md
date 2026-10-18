@@ -95,8 +95,8 @@ With a premium key the list fills with everything TheSportsDB has scheduled.
 
 ### Which channel a game is on
 
-Under each coming game the card shows its channels, UK first then Norway, for example `UK TNT Sports 1` and
-`NO V sport Premier League 1`. Two sources are merged:
+Under each coming game the card shows its channels, the UK's first then Norway's, each group behind its flag: the
+Scottish saltire for the UK channels, the Norwegian flag for Norway's (for example TNT Sports 1, V sport Premier League 1). Two sources are merged:
 
 - **The TV guides.** Every six hours, one download for all teams: the UK guide published by
   [epgshare01](https://epgshare01.online/epgshare01/) (Sky Sports, TNT Sports, Premier Sports, BBC One Scotland, STV
