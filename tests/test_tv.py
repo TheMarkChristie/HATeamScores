@@ -10,7 +10,7 @@ import json
 import unittest
 from datetime import date, datetime, timedelta, timezone
 
-from _load import model, tv
+from _load import const, model, tv
 
 UTC = timezone.utc
 T = lambda s: datetime.fromisoformat(s).replace(tzinfo=UTC)  # noqa: E731
@@ -181,6 +181,13 @@ class LeagueDefaults(unittest.TestCase):
         uk = [{"channel": "Premier Sports 1", "country": "UK", "source": "guide"}]
         self.assertEqual([i["channel"] for i in tv.with_defaults(uk, "4358", None, self.DEFAULTS)], ["Premier Sports 1", "TV 2"])
 
+    def test_uk_basketball_is_on_dazn_in_both_countries(self):
+        for league_id, name in (("4431", "British Super League Basketball"), ("5127", "British Super League Basketball Women")):
+            self.assertEqual(tv.with_defaults([], league_id, None, const.DEFAULT_TV),
+                             [{"channel": "DAZN", "country": "UK", "source": "default"},
+                              {"channel": "DAZN", "country": "NO", "source": "default"}], name)
+            self.assertEqual(len(tv.with_defaults([], None, name, const.DEFAULT_TV)), 2, "by name")
+
     def test_other_leagues_are_left_alone(self):
         self.assertEqual(tv.with_defaults([], "4328", "English Premier League", self.DEFAULTS), [])
         self.assertEqual(tv.with_defaults([], "4380", "Norwegian 1. Divisjon", self.DEFAULTS), [])
@@ -216,6 +223,15 @@ class TodayOnTv(unittest.TestCase):
         games = tv.today_on_tv(events, self.progs, date(2026, 10, 18), ZoneInfo("Europe/Oslo"))
         self.assertEqual([(g["event_id"], [i["channel"] for i in g["tv"]]) for g in games],
                          [("5", ["TNT Sports 4"]), ("1", ["Sky Sports Main Event", "V sport Premier League"])])
+
+    def test_a_league_default_puts_a_game_on_the_list(self):
+        from zoneinfo import ZoneInfo
+        game = dict(self.ev("7", "2026-10-18T14:00:00", "Manchester Basketball", "Caledonia Gladiators", "Basketball"),
+                    idLeague="4431", strLeague="British Super League Basketball")
+        other = dict(self.ev("8", "2026-10-18T14:00:00", "Bristol Flyers", "Sheffield Sharks", "Basketball"), idLeague="9999")
+        games = tv.today_on_tv([game, other], self.progs, date(2026, 10, 18), ZoneInfo("Europe/Oslo"), const.DEFAULT_TV)
+        self.assertEqual([(g["event_id"], [(i["country"], i["channel"]) for i in g["tv"]]) for g in games],
+                         [("7", [("UK", "DAZN"), ("NO", "DAZN")])])
 
     def test_irish_channels_are_not_uk(self):
         self.assertFalse(tv.guide_channel_wanted("Virgin.Media.Two.uk"))

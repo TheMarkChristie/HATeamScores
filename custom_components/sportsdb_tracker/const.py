@@ -50,6 +50,11 @@ HIGHLIGHTS_RECHECK_HOURS = 2             # a game without highlights yet is aske
 DEFAULT_TV = [
     {"league_id": "4358", "league": "Norwegian Eliteserien", "country": "NO", "channel": "TV 2"},
     {"league_id": "4926", "league": "Norwegian Fjordkraft-ligaen", "country": "NO", "channel": "TV 2"},
+    # Mark, 18 Oct 2026: "All UK Basketball is on DAZN in UK and Norway" (Super League Basketball, men's and women's)
+    {"league_id": "4431", "league": "British Super League Basketball", "country": "UK", "channel": "DAZN"},
+    {"league_id": "4431", "league": "British Super League Basketball", "country": "NO", "channel": "DAZN"},
+    {"league_id": "5127", "league": "British Super League Basketball Women", "country": "UK", "channel": "DAZN"},
+    {"league_id": "5127", "league": "British Super League Basketball Women", "country": "NO", "channel": "DAZN"},
 ]
 
 # the Team Scores card, served by the integration from its www folder and registered as a dashboard resource

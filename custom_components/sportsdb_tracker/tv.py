@@ -338,9 +338,12 @@ def with_defaults(listings: list[dict[str, str]], league_id: str | None, league:
 
 # ---- today on TV ----------------------------------------------------------------------------------------------------
 
-def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], day: date, tz: tzinfo) -> list[dict[str, Any]]:
+def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], day: date, tz: tzinfo,
+                defaults: Iterable[dict[str, str]] = ()) -> list[dict[str, Any]]:
     """Every game of the local `day` (TheSportsDB's eventsday records, any sport) that a UK or Norwegian channel shows
-    live: on air at kick-off and naming both teams, the same rule as a fixture's channels. Soonest first, each game once."""
+    live: on air at kick-off and naming both teams, the same rule as a fixture's channels, or in a league whose usual
+    channel is known (`defaults`, as for a fixture). Soonest first, each game once."""
+    defaults = list(defaults)
     lo = datetime.combine(day, time.min, tz).astimezone(UTC) - STARTS_FROM
     hi = datetime.combine(day + timedelta(days=1), time.min, tz).astimezone(UTC)
     todays = sorted((p for p in programmes if lo <= p.start < hi), key=lambda p: p.start)
@@ -364,7 +367,7 @@ def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], d
             continue
         h, a = pair_needles(home, away, e.get("strSport"))
         window = [p for p in todays if start - STARTS_FROM <= p.start <= start + STARTS_BY]
-        found = guide_listings(start, h, a, window)
+        found = with_defaults(guide_listings(start, h, a, window), e.get("idLeague"), e.get("strLeague"), defaults)
         if found:
             out.append({"event_id": eid, "date": start.isoformat(), "sport": e.get("strSport"), "league": e.get("strLeague"),
                         "league_logo": e.get("strLeagueBadge"), "home": home, "away": away, "home_id": e.get("idHomeTeam"),

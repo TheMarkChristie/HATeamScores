@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from .api import SportsDBError, get_client
-from .const import CONF_API_KEY, DEFAULT_API_KEY, DOMAIN, TODAY_CACHE_HOURS, TODAY_SPORTS
+from .const import CONF_API_KEY, DEFAULT_API_KEY, DEFAULT_TV, DOMAIN, TODAY_CACHE_HOURS, TODAY_SPORTS
 from .guide import get_guide
 from .tv import today_on_tv
 
@@ -65,7 +65,7 @@ class TodayStore:
         key = _key(self._hass)
         # a local day spans two UTC dates (TheSportsDB files games by UTC date)
         events = await self._events(key, [(today - timedelta(days=1)).isoformat(), today.isoformat()])
-        games = await self._hass.async_add_executor_job(today_on_tv, events, programmes, today, tz)
+        games = await self._hass.async_add_executor_job(today_on_tv, events, programmes, today, tz, DEFAULT_TV)
         return {"day": today.isoformat(), "games": games, "status": "ok", "premium": key != DEFAULT_API_KEY}
 
 

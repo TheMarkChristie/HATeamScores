@@ -115,8 +115,10 @@ Scottish saltire for the UK channels, the Norwegian flag for Norway's (for examp
 
 **Usual channels by league.** Norwegian Eliteserien football and Fjordkraft-ligaen ice hockey games show `NO TV 2` when
 neither source finds a Norwegian channel (TV 2 holds both; most Eliteserien games are on TV 2 Play only, which no
-guide lists). A channel the guide names for the game, such as TV 2 Sport 1, is shown instead. The table is
-`DEFAULT_TV` in `const.py`, matched by TheSportsDB's league id.
+guide lists). UK basketball (Super League Basketball, men's and women's) shows DAZN in both the UK and Norway, as
+DAZN streams every game and has no guide. A channel the guide names for the game, such as TV 2 Sport 1, is shown
+instead. These games also count in **On TV today**. The table is `DEFAULT_TV` in `const.py`, matched by TheSportsDB's
+league id.
 
 Not every game is listed anywhere. Services that sell events rather than run channels (DAZN, VG+ Sport, TV 2 Play's
 extra streams) have no guide, and TheSportsDB's broadcaster data is crowd-sourced and often empty for Scottish and

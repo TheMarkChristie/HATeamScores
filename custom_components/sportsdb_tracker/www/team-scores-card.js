@@ -49,7 +49,7 @@
     .row.first { border-top: none; }
     .time { grid-area: time; align-self: start; padding-top: 3px; font-size: 0.9em; color: var(--secondary-text-color);
             font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .time .lg { display: block; width: 22px; height: 22px; margin-top: 7px; object-fit: contain; }
+    .time .lg { display: block; width: 22px; height: 22px; margin-top: 7px; object-fit: contain; object-position: left center; }
     .time.live { color: var(--error-color, #db4437); font-weight: 600; }
     .time.ft { font-weight: 600; }
     .side { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 0.95em; color: var(--primary-text-color); }
