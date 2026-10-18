@@ -17,6 +17,10 @@
  * day_width: 300              the narrowest a day column may be, in pixels
  * show_goals: true             who scored (minute, scorer, assist) in a game's details; tap any game for them
  * show_highlights: true        a Highlights link (YouTube) under a finished game that has one
+ * tv_devices: [remote.x, ...]  Google devices (Android TV Remote) a channel can open on: tap a channel, pick the device,
+ *                              its app opens there ({entity: remote.x, name: Lounge} to name one)
+ * tv_launch_countries: [NO]    only these countries' channels open apps (default: tv_countries)
+ * tv_apps: [{match: "^Clan TV", name: Clan TV, app: <package or deep link>, country: UK}]   more channel -> app rows
  * show_tv_button: true         an On TV today button: every game on UK or Norwegian TV today, by time
  * tv_countries: [UK, NO]       which countries' channels to show
  *
@@ -103,6 +107,17 @@
     .facts .flag { display: inline-block; width: 18px; height: 12px; margin-right: 6px; vertical-align: -1px; border-radius: 2px;
                    box-shadow: 0 0 0 1px rgba(127,127,127,0.35); }
     .facts a { color: var(--primary-color); }
+    .ch { font: inherit; color: var(--primary-color); background: none; border: 0; padding: 2px 0; margin: 0; cursor: pointer;
+          text-decoration: underline; text-underline-offset: 2px; }
+    .ch:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; border-radius: 2px; }
+    .launch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 2px; font-size: 1.15em; }
+    .launch .lt { flex: 1 0 100%; color: var(--secondary-text-color); }
+    .launch button { font: inherit; padding: 7px 12px; border-radius: 16px; cursor: pointer; background: transparent;
+                     border: 1px solid var(--divider-color, rgba(127,127,127,0.35)); color: var(--primary-text-color); }
+    .launch button.dev { border-color: var(--primary-color); }
+    .launch button:disabled { opacity: 0.5; cursor: default; }
+    .launch button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+    .launch .msg { flex: 1 0 100%; color: var(--primary-text-color); outline: none; }
     .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 2px 16px; min-height: 36px; }
     .bar .head { padding: 0; flex: 1 1 auto; min-width: 0; }
     .tvbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.85em; cursor: pointer;
@@ -119,6 +134,19 @@
     }
     .empty { padding: 12px 16px; color: var(--secondary-text-color); }
   `;
+
+  /* the app that shows a channel, by its name and country, for opening it on a Google device (Android TV Remote's
+   * remote.turn_on with an activity). An app is a package name (checked on the Play Store, 18 Oct 2026) or a deep link;
+   * tv_apps in the card's settings comes first, so a link that works better on a device can replace one here. */
+  const APPS = [
+    { country: "NO", match: /^TV ?2\b/i, name: "TV 2 Play", app: "no.tv2.sumo" },
+    { country: "NO", match: /^(V ?sport|Viaplay)/i, name: "Viaplay", app: "com.viaplay.android" },
+    { country: "NO", match: /^NRK/i, name: "NRK TV", app: "no.nrk.tv" },
+    { country: "NO", match: /^Eurosport/i, name: "Max", app: "com.wbd.stream" },
+    { country: "", match: /^DAZN/i, name: "DAZN", app: "com.dazn" },
+    { country: "UK", match: /^Sky Sports/i, name: "Sky Go", app: "com.bskyb.skygo" },
+    { country: "UK", match: /^ITV/i, name: "ITVX", app: "air.ITVMobilePlayer" },
+  ];
 
   /* the flag beside each country's channels: the saltire for the UK listings (the household's home there is Scotland),
    * the Norwegian cross for Norway. Drawn inline, so nothing is fetched and every device shows the same thing. */
@@ -160,14 +188,21 @@
       this._tv = null;
       this._tvLoading = false;
       this._tvTimer = null;
+      this._launch = null;
       this.addEventListener("click", (e) => {
         if (!e.target.closest) return;
         if (e.target.closest(".tvbtn")) { this._toggleTv(); return; }
-        if (e.target.closest("a")) return;                    // the highlights link opens the video, not the goals
+        const ch = e.target.closest(".ch");
+        if (ch) { this._askDevice(ch.dataset.ev, ch.dataset.ch, ch.dataset.cc); return; }
+        const dev = e.target.closest(".launch .dev");
+        if (dev) { this._launchOn(dev.dataset.dev); return; }
+        if (e.target.closest(".launch .cancel")) { this._closeLaunch(); return; }
+        if (e.target.closest("a, button, .launch")) return;   // a link or button does its own thing, not the goals
         const row = e.target.closest(".row.click");
         if (row) toggle(row);
       });
       this.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this._launch) { this._closeLaunch(); return; }
         if (e.key !== "Enter" && e.key !== " ") return;
         const marker = e.target.closest && e.target.closest(".row.click .more");
         if (marker) { e.preventDefault(); toggle(marker.closest(".row.click")); }
@@ -176,6 +211,79 @@
 
     disconnectedCallback() {
       if (this._tvTimer) { clearInterval(this._tvTimer); this._tvTimer = null; }
+    }
+
+    /* a channel opens its app on a Google device (Android TV Remote): tapping it asks which device, every time */
+    _appFor(channel, cc) {
+      const own = (this._config.tv_apps || []).map((a) => Object.assign({}, a, { match: new RegExp(a.match, "i") }));
+      return [...own, ...APPS].find((a) => (!a.country || a.country === cc) && a.match.test(channel)) || null;
+    }
+
+    _devices() {
+      return (this._config.tv_devices || []).map((d) => {
+        const entity = typeof d === "string" ? d : d.entity;
+        const st = this._hass && this._hass.states[entity];
+        return { entity, name: (typeof d === "object" && d.name) || (st && st.attributes.friendly_name) || entity,
+                 ok: !!st && st.state !== "unavailable" };
+      });
+    }
+
+    _launchable(channel, cc) {
+      const countries = this._config.tv_launch_countries || this._config.tv_countries || ["UK", "NO"];
+      return this._devices().length > 0 && countries.includes(cc) && !!this._appFor(channel, cc);
+    }
+
+    _chan(channel, cc, key) {
+      if (!this._launchable(channel, cc)) return esc(channel);
+      const app = this._appFor(channel, cc);
+      return `<button class="ch" data-ev="${esc(key)}" data-ch="${esc(channel)}" data-cc="${esc(cc)}"` +
+        ` aria-label="${esc(`${channel}: open ${app.name} on a TV`)}">${esc(channel)}</button>`;
+    }
+
+    _askDevice(key, channel, cc) {
+      const app = this._appFor(channel, cc);
+      if (!app) return;
+      this._launch = { key, channel, app, msg: "" };
+      this._sig = null;
+      this._render();
+      const first = this.querySelector(".launch .dev:not([disabled])") || this.querySelector(".launch .cancel");
+      if (first) first.focus({ preventScroll: true });
+    }
+
+    _closeLaunch() {
+      const key = this._launch && this._launch.key;
+      this._launch = null;
+      this._sig = null;
+      this._render();
+      const ch = key && [...this.querySelectorAll(".ch")].find((b) => b.dataset.ev === key);
+      if (ch) ch.focus({ preventScroll: true });
+    }
+
+    async _launchOn(entity) {
+      const l = this._launch;
+      if (!l || !this._hass) return;
+      const dev = this._devices().find((d) => d.entity === entity);
+      try {
+        await this._hass.callService("remote", "turn_on", { entity_id: entity, activity: l.app.app });
+        l.msg = `Opening ${l.app.name} on ${dev ? dev.name : entity}.`;
+        setTimeout(() => { if (this._launch === l) this._closeLaunch(); }, 4000);
+      } catch (err) {
+        l.msg = `${l.app.name} could not be opened: ${(err && err.message) || err}`;
+      }
+      this._sig = null;
+      this._render();
+      const msg = this.querySelector(".launch .msg");
+      if (msg) msg.focus({ preventScroll: true });
+    }
+
+    _launchPanel(key) {
+      const l = this._launch;
+      if (!l || l.key !== key) return "";
+      const devs = this._devices().map((d) =>
+        `<button class="dev" data-dev="${esc(d.entity)}"${d.ok ? "" : " disabled"}>${esc(d.name)}${d.ok ? "" : " (unavailable)"}</button>`).join("");
+      return `<div class="launch" role="group" aria-label="${esc(`Open ${l.app.name} on`)}">` +
+        `<span class="lt">Open ${esc(l.app.name)} (${esc(l.channel)}) on</span>${devs}<button class="cancel">Cancel</button>` +
+        (l.msg ? `<span class="msg" role="status" tabindex="-1">${esc(l.msg)}</span>` : "") + `</div>`;
     }
 
     /* the On TV today view: opened and closed by the button, read again every ten minutes while open */
@@ -229,7 +337,7 @@
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
                                      show_venue: true, show_league: true, show_league_logo: true, show_tv: true, tv_countries: ["UK", "NO"],
                                      layout: "columns", day_width: 300, show_goals: true, show_tv_button: true,
-                                     show_highlights: true }, config || {});
+                                     show_highlights: true, tv_devices: [], tv_launch_countries: null, tv_apps: [] }, config || {});
       this._sig = null;
       if (this._hass) this._render();
     }
@@ -412,11 +520,14 @@
         for (const cc of this._config.tv_countries || ["UK", "NO"]) {
           const names = g.tv.filter((i) => i.country === cc).map((i) => i.channel);
           if (!names.length) continue;
-          const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
-          groups.push(`<span class="grp">${flag(cc)}${esc(shown)}</span>`);
+          const shown = names.slice(0, 3).map((n) => this._chan(n, cc, key)).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+          groups.push(`<span class="grp">${flag(cc)}${shown}</span>`);
         }
         if (groups.length) tv = `<div class="tv">${groups.join("")}</div>`;
       }
+      // the device question for a tapped channel, under the channels
+      const launch = this._launchPanel(key);
+      if (launch) tv = tv ? tv.replace(/<\/div>$/, `${launch}</div>`) : `<div class="tv">${launch}</div>`;
       // a finished game's highlights go where a coming game's channels are
       if (this._config.show_highlights && g.finished && /^https?:\/\//i.test(g.video || "")) {
         tv = `<div class="tv hl"><a href="${esc(g.video)}" target="_blank" rel="noopener noreferrer"` +
@@ -454,6 +565,7 @@
     /* what tapping a game opens: who scored, then the competition and round, when, where, every channel (not only the
        first three per country), the match page on TheSportsDB */
     _details(g, goals, t, fmt) {
+      const key = String(g.event_id || (g.name || "") + g.date);
       const facts = [];
       const round = Number(g.round);
       const comp = [g.league, round > 0 && round < 100 ? `Round ${round}` : ""].filter(Boolean).join(" · ");
@@ -466,7 +578,7 @@
         const groups = [];
         for (const cc of this._config.tv_countries || ["UK", "NO"]) {
           const names = g.tv.filter((i) => i.country === cc).map((i) => i.channel);
-          if (names.length) groups.push(`<span class="grp">${flag(cc)}${esc(names.join(", "))}</span>`);
+          if (names.length) groups.push(`<span class="grp">${flag(cc)}${names.map((n) => this._chan(n, cc, key)).join(", ")}</span>`);
         }
         if (groups.length) facts.push(["TV", groups.join("")]);
       }

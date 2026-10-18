@@ -89,6 +89,9 @@ results_days: 1
 | `day_width` | 300 | The narrowest a day column may be, in pixels |
 | `show_goals` | true | Who scored, in a game's details (tap any game) |
 | `show_highlights` | true | A **Highlights** link under a finished game that has a video |
+| `tv_devices` | none | Google devices (Android TV Remote `remote.` entities) a channel can open its app on |
+| `tv_launch_countries` | `tv_countries` | Only these countries' channels open apps (quote `"NO"` in YAML) |
+| `tv_apps` | none | More channel-to-app rows: `{match: "^Clan TV", name: Clan TV, app: <package or link>, country: UK}` |
 | `show_tv_button` | true | An **On TV today** button in the card's header |
 
 A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
@@ -154,6 +157,23 @@ Scottish Premiership and cups, Champions League, Europa and Conference League, N
 NHL), found by the game's date and both team names. A football game ESPN does not cover uses TheSportsDB's timeline:
 on the free key that is the first five events of a game, so goals go missing and the card says so; a premium key
 returns them all. Norwegian and UK ice hockey and basketball have no scorers in either source.
+
+### Watch a channel on a Google device
+
+With `tv_devices` set, a channel name the card knows an app for is a link: tap it, choose the device (the card asks
+every time, and greys out one that is unavailable), and the app opens there through the Android TV Remote integration
+(`remote.turn_on` with the app as its activity). The app opens on its home screen; pick the channel in it. Known apps:
+TV 2 Play (TV 2, TV 2 Sport), Viaplay (V sport), NRK TV, Max (Eurosport Norge), DAZN, Sky Go (Sky Sports) and ITVX.
+Home Assistant's docs note that opening an app by its package name does not work for every app since a Google Play
+change; an app that does not open can be given a deep link in `tv_apps` instead, which comes before the built-in list.
+
+```yaml
+tv_devices:
+  - remote.living_room_google
+  - entity: remote.bedroom_tv
+    name: Bedroom
+tv_launch_countries: ["NO"]
+```
 
 ### Highlights
 
