@@ -22,6 +22,8 @@ from .const import (
     DEFAULT_GAME_MINUTES,
     FINISHED_STATUSES,
     GAME_MINUTES,
+    HIGHLIGHTS_DAYS,
+    HIGHLIGHTS_RECHECK_HOURS,
     LOOKUP_GRACE_HOURS,
     NEXT_CHECK_MINUTES,
     RESULT_WAIT_MINUTES,
@@ -236,12 +238,13 @@ class Memory:
     tv: dict[str, list[dict[str, str]]] = field(default_factory=dict)   # event id -> [{channel, country, source}]
     tv_checked: dict[str, str] = field(default_factory=dict)            # event id -> when TheSportsDB was last asked
     scorers: dict[str, dict[str, Any]] = field(default_factory=dict)    # event id -> {goals, final, complete, source, checked}
+    highlights: dict[str, dict[str, str]] = field(default_factory=dict)  # event id -> {url, checked}: a recent game's video
 
     def to_dict(self) -> dict[str, Any]:
         return {"tracked": self.tracked.to_dict() if self.tracked else None, "last": self.last.to_dict() if self.last else None,
                 "checked_next": _iso(self.checked_next), "seeded": self.seeded,
                 "upcoming": [e.to_dict() for e in self.upcoming], "recent": [e.to_dict() for e in self.recent],
-                "tv": self.tv, "tv_checked": self.tv_checked, "scorers": self.scorers}
+                "tv": self.tv, "tv_checked": self.tv_checked, "scorers": self.scorers, "highlights": self.highlights}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Memory:
@@ -252,7 +255,9 @@ class Memory:
                   recent=[Event.from_dict(e) for e in data.get("recent") or []],
                   tv={str(k): [dict(i) for i in v] for k, v in (data.get("tv") or {}).items() if isinstance(v, list)},
                   tv_checked={str(k): str(v) for k, v in (data.get("tv_checked") or {}).items()},
-                  scorers={str(k): dict(v) for k, v in (data.get("scorers") or {}).items() if isinstance(v, dict)})
+                  scorers={str(k): dict(v) for k, v in (data.get("scorers") or {}).items() if isinstance(v, dict)},
+                  highlights={str(k): {str(a): str(b) for a, b in v.items()}
+                              for k, v in (data.get("highlights") or {}).items() if isinstance(v, dict)})
         # memory saved by a version without the lists: the games it knew go into them
         if mem.tracked is not None and not any(e.id == mem.tracked.id for e in mem.upcoming):
             mem.upcoming.insert(0, mem.tracked)
@@ -264,6 +269,32 @@ class Memory:
 
 
 KEEP_RECENT = 10
+
+_VIDEO = re.compile(r"^https?://\S+$", re.I)
+
+
+def video_url(value: str | None) -> str | None:
+    """A highlights link worth showing: a web address, nothing else."""
+    value = (value or "").strip()
+    return value if _VIDEO.match(value) else None
+
+
+def game_video(game: Event, highlights: dict[str, dict[str, str]] | None) -> str | None:
+    """The game's highlights: on the game as first read, or found by asking again since."""
+    return video_url(game.video) or video_url(((highlights or {}).get(game.id) or {}).get("url"))
+
+
+def highlights_due(mem: Memory, now: datetime) -> list[Event]:
+    """Finished games of the last HIGHLIGHTS_DAYS without highlights yet and not asked in the last
+    HIGHLIGHTS_RECHECK_HOURS."""
+    due = []
+    for e in mem.recent:
+        if e.start is None or now - e.start > timedelta(days=HIGHLIGHTS_DAYS) or game_video(e, mem.highlights):
+            continue
+        checked = _parse_iso((mem.highlights.get(e.id) or {}).get("checked"))
+        if checked is None or now - checked >= timedelta(hours=HIGHLIGHTS_RECHECK_HOURS):
+            due.append(e)
+    return due
 
 
 def _remember_finished(mem: Memory, events: list[Event]) -> None:
@@ -370,7 +401,8 @@ def _is_home(team: Team, game: Event) -> bool:
 
 
 def _brief(game: Event | None, now: datetime, to_local: ToLocal, tv: dict[str, list[dict[str, str]]] | None = None,
-           scorers: dict[str, dict[str, Any]] | None = None) -> dict[str, Any] | None:
+           scorers: dict[str, dict[str, Any]] | None = None,
+           highlights: dict[str, dict[str, str]] | None = None) -> dict[str, Any] | None:
     """One game for the card: both sides with badges, where and when, the score once it is in."""
     if game is None:
         return None
@@ -387,7 +419,8 @@ def _brief(game: Event | None, now: datetime, to_local: ToLocal, tv: dict[str, l
             "live": bool(game.start and not finished and now >= game.start and (end is None or now < end + timedelta(minutes=RESULT_WAIT_MINUTES))),
             "tv": [] if finished else list((tv or {}).get(game.id) or []),
             "goals": list(((scorers or {}).get(game.id) or {}).get("goals") or []),
-            "goals_complete": bool(((scorers or {}).get(game.id) or {}).get("complete", True))}
+            "goals_complete": bool(((scorers or {}).get(game.id) or {}).get("complete", True)),
+            "video": game_video(game, highlights) if finished else None}
 
 
 def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hours: int,
@@ -456,15 +489,15 @@ def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hour
             "date": _iso(game.start),
             "kickoff_in": kickoff_text(local, loc(now), game.time_known) if state == STATE_PRE and local else None,
             "venue": game.venue, "location": ", ".join(p for p in (game.venue, game.country) if p) or None,
-            "country": game.country, "clock": clock, "video": game.video,
+            "country": game.country, "clock": clock, "video": game_video(game, mem.highlights),
             "tv_network": ", ".join(i["channel"] for i in mem.tv.get(game.id) or []) or None,
             "tv": list(mem.tv.get(game.id) or []),
         })
-    attrs["next_game"] = _brief(tracked, now, loc, mem.tv, mem.scorers) if state in (STATE_POST, STATE_NOT_FOUND) and tracked is not None and game is not tracked else None
-    attrs["last_game"] = _brief(last, now, loc, mem.tv, mem.scorers) if state in (STATE_PRE, STATE_IN, STATE_NOT_FOUND) and last is not None else None
+    attrs["next_game"] = _brief(tracked, now, loc, mem.tv, mem.scorers, mem.highlights) if state in (STATE_POST, STATE_NOT_FOUND) and tracked is not None and game is not tracked else None
+    attrs["last_game"] = _brief(last, now, loc, mem.tv, mem.scorers, mem.highlights) if state in (STATE_PRE, STATE_IN, STATE_NOT_FOUND) and last is not None else None
     # every game the integration knows, for a card that lays them out by day
-    attrs["fixtures"] = [_brief(e, now, loc, mem.tv, mem.scorers) for e in mem.upcoming if e.start is not None]
-    attrs["results"] = [_brief(e, now, loc, mem.tv, mem.scorers) for e in mem.recent]
+    attrs["fixtures"] = [_brief(e, now, loc, mem.tv, mem.scorers, mem.highlights) for e in mem.upcoming if e.start is not None]
+    attrs["results"] = [_brief(e, now, loc, mem.tv, mem.scorers, mem.highlights) for e in mem.recent]
     attrs["last_update"] = now.isoformat()
     attrs["attribution"] = ATTRIBUTION
     return state, attrs

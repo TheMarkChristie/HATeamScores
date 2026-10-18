@@ -35,7 +35,19 @@ from .const import (
     UPDATE_MINUTES_IDLE,
     UPDATE_MINUTES_LIVE,
 )
-from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
+from .model import (
+    Event,
+    Memory,
+    Team,
+    absorb_last,
+    absorb_lookup,
+    absorb_next,
+    highlights_due,
+    needs_lookup,
+    needs_next,
+    next_transition,
+    video_url,
+)
 from .scorers import SCORER_SPORTS, espn_slug, find_espn_event, parse_espn_summary, scoreboard_dates, timeline_goals
 from .tv import guide_listings, merge, pair_needles, sportsdb_listings, with_defaults
 
@@ -115,6 +127,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
             failed = True
         await self._update_tv(mem, now, key)
         await self._update_scorers(mem, now, key)
+        await self._update_highlights(mem, now, key)
         data = {"memory": mem.to_dict(), "team": self.team.to_dict()}
         if data != self._saved:
             await self._store.async_save(data)
@@ -194,6 +207,21 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
             mem.scorers[e.id] = got
         keep = {e.id for e in mem.recent} | {e.id for e in mem.upcoming}
         mem.scorers = {k: v for k, v in mem.scorers.items() if k in keep}
+
+    async def _update_highlights(self, mem: Memory, now: datetime, key: str) -> None:
+        """The highlights video of the team's finished games of the last few days. TheSportsDB adds it to a game some
+        hours after the final whistle (for most top leagues; a YouTube link), so a game without one is read again every
+        HIGHLIGHTS_RECHECK_HOURS until it has one. Not on the refresh at start-up."""
+        if self.data is not None:
+            for e in highlights_due(mem, now):
+                try:
+                    raw = await self.client.lookup_event(key, e.id)
+                except SportsDBError as err:
+                    _LOGGER.debug("%s: highlights of %s not read: %s", self.name, e.id, err)
+                    continue
+                mem.highlights[e.id] = {"url": video_url((raw or {}).get("strVideo")) or "", "checked": now.isoformat()}
+        keep = {e.id for e in mem.recent}
+        mem.highlights = {k: v for k, v in mem.highlights.items() if k in keep}
 
     async def _espn_goals(self, espn: EspnClient, e: Event, now: datetime) -> dict | None:
         slug = espn_slug(e.league_id, e.league)

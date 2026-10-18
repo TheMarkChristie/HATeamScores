@@ -88,6 +88,7 @@ results_days: 1
 | `layout` | `columns` | `columns` puts the days side by side when the card is wide enough (a tablet or desktop); `list` keeps one long column. A phone always shows one column |
 | `day_width` | 300 | The narrowest a day column may be, in pixels |
 | `show_goals` | true | Tap a game with goals to see who scored |
+| `show_highlights` | true | A **Highlights** link under a finished game that has a video |
 | `show_tv_button` | true | An **On TV today** button in the card's header |
 
 A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
@@ -143,6 +144,13 @@ Scottish Premiership and cups, Champions League, Europa and Conference League, N
 NHL), found by the game's date and both team names. A football game ESPN does not cover uses TheSportsDB's timeline:
 on the free key that is the first five events of a game, so goals go missing and the card says so; a premium key
 returns them all. Norwegian and UK ice hockey and basketball have no scorers in either source.
+
+### Highlights
+
+A finished game with a highlights video gets a **Highlights** link under it, where a coming game shows its channels;
+it opens the video (on a phone, the YouTube app). TheSportsDB adds the video to a game some hours after the final
+whistle, for most top leagues (the Premier League, the NHL, MLS and EuroLeague among them; not every league has one),
+so each team's integration asks again for its games of the last three days every two hours until the video is there.
 
 ### One sport per card
 

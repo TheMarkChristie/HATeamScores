@@ -16,6 +16,7 @@
  * layout: columns             columns: the days side by side when the card is wide enough; list: one long column
  * day_width: 300              the narrowest a day column may be, in pixels
  * show_goals: true             tap a game with goals to see who scored (minute, scorer, assist)
+ * show_highlights: true        a Highlights link (YouTube) under a finished game that has one
  * show_tv_button: true         an On TV today button: every game on UK or Norwegian TV today, by time
  * tv_countries: [UK, NO]       which countries' channels to show
  *
@@ -73,8 +74,12 @@
     .tv .grp { display: inline; margin-right: 10px; }
     .row.click { cursor: pointer; }
     .row.click:hover { background: var(--secondary-background-color, rgba(127,127,127,0.06)); }
-    .row.click:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
-    .more { color: var(--primary-color); white-space: nowrap; }
+    .more { color: var(--primary-color); white-space: nowrap; padding: 0 4px; border-radius: 4px; }
+    .more:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--primary-color); }
+    .hl a { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-text-color); text-decoration: none; border-radius: 4px; }
+    .hl a:hover span { text-decoration: underline; }
+    .hl a:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+    .hl svg { width: 20px; height: 14px; flex: 0 0 20px; }
     .sub { display: flex; gap: 6px; }
     .sub .subt { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sub .more { flex: 0 0 auto; }
@@ -139,21 +144,24 @@
         this._sig = null;
         this._render();
         const again = [...this.querySelectorAll(".row.click")].find((r) => r.dataset.ev === key);
-        if (again) again.focus({ preventScroll: true });
+        const marker = again && again.querySelector(".more");
+        if (marker) marker.focus({ preventScroll: true });
       };
       this._mode = "scores";
       this._tv = null;
       this._tvLoading = false;
       this._tvTimer = null;
       this.addEventListener("click", (e) => {
-        if (e.target.closest && e.target.closest(".tvbtn")) { this._toggleTv(); return; }
-        const row = e.target.closest && e.target.closest(".row.click");
+        if (!e.target.closest) return;
+        if (e.target.closest(".tvbtn")) { this._toggleTv(); return; }
+        if (e.target.closest("a")) return;                    // the highlights link opens the video, not the goals
+        const row = e.target.closest(".row.click");
         if (row) toggle(row);
       });
       this.addEventListener("keydown", (e) => {
         if (e.key !== "Enter" && e.key !== " ") return;
-        const row = e.target.closest && e.target.closest(".row.click");
-        if (row) { e.preventDefault(); toggle(row); }
+        const marker = e.target.closest && e.target.closest(".row.click .more");
+        if (marker) { e.preventDefault(); toggle(marker.closest(".row.click")); }
       });
     }
 
@@ -211,7 +219,8 @@
     setConfig(config) {
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
                                      show_venue: true, show_league: true, show_league_logo: true, show_tv: true, tv_countries: ["UK", "NO"],
-                                     layout: "columns", day_width: 300, show_goals: true, show_tv_button: true }, config || {});
+                                     layout: "columns", day_width: 300, show_goals: true, show_tv_button: true,
+                                     show_highlights: true }, config || {});
       this._sig = null;
       if (this._hass) this._render();
     }
@@ -382,7 +391,10 @@
       const goals = this._config.show_goals && Array.isArray(g.goals) ? g.goals : [];
       const open = goals.length > 0 && this._open.has(key);
       const word = g.sport === "American Football" ? "Scoring" : "Goals";
-      const more = goals.length ? `<span class="more">${open ? `${word} &#9652;` : `${word} &#9662;`}</span>` : "";
+      const more = goals.length
+        ? `<span class="more" role="button" tabindex="0" aria-expanded="${open}"` +
+          ` aria-label="${esc(`${g.home} v ${g.away}: ${open ? "hide" : "show"} ${word.toLowerCase()}`)}">` +
+          `${open ? `${word} &#9652;` : `${word} &#9662;`}</span>` : "";
       const subText = esc(subParts.join(" · "));
       const sub = subParts.length || more ? `<div class="sub"><span class="subt">${subText}</span>${more}</div>` : "";
       const detail = open ? this._goals(g, goals) : "";
@@ -397,8 +409,14 @@
         }
         if (groups.length) tv = `<div class="tv">${groups.join("")}</div>`;
       }
-      const attrs = goals.length ? ` data-ev="${esc(key)}" role="button" tabindex="0" aria-expanded="${open}"` +
-        ` aria-label="${esc(`${g.home} v ${g.away}: ${open ? "hide" : "show"} ${word.toLowerCase()}`)}"` : "";
+      // a finished game's highlights go where a coming game's channels are
+      if (this._config.show_highlights && g.finished && /^https?:\/\//i.test(g.video || "")) {
+        tv = `<div class="tv hl"><a href="${esc(g.video)}" target="_blank" rel="noopener noreferrer"` +
+          ` aria-label="${esc(`${g.home} v ${g.away}: highlights (opens in a new tab)`)}">` +
+          `<svg viewBox="0 0 28 20" aria-hidden="true"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg>` +
+          `<span>Highlights</span></a></div>`;
+      }
+      const attrs = goals.length ? ` data-ev="${esc(key)}"` : "";
       return `<div class="row${first ? " first" : ""}${goals.length ? " click" : ""}"${attrs}>` +
         `<div class="time ${timeCls}">${esc(time)}${logo}</div>` +
         side("home", g.home_id, g.home, g.home_badge, homeLost) +

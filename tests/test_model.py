@@ -83,6 +83,44 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(model.Team.from_dict(model.Team.parse(CLAN).to_dict()), model.Team.parse(CLAN))
 
 
+class HighlightsTests(unittest.TestCase):
+    """A finished game is asked for its video until TheSportsDB has one; the card gets it on the result."""
+
+    def setUp(self):
+        self.team = model.Team.parse(CLAN)
+        self.mem = model.Memory(seeded=True)
+        game = model.Event.parse(AWAY_FT)
+        game.finished_at = T("2026-09-23T21:00:00")
+        self.mem.recent, self.mem.last = [game], game
+
+    def test_asked_until_found(self):
+        now = T("2026-09-24T08:00:00")
+        self.assertEqual([e.id for e in model.highlights_due(self.mem, now)], ["2523079"])
+        self.mem.highlights["2523079"] = {"url": "", "checked": now.isoformat()}
+        self.assertEqual(model.highlights_due(self.mem, now + timedelta(hours=1)), [])
+        self.assertEqual(len(model.highlights_due(self.mem, now + timedelta(hours=2))), 1)
+        self.mem.highlights["2523079"] = {"url": "https://www.youtube.com/watch?v=abc", "checked": now.isoformat()}
+        self.assertEqual(model.highlights_due(self.mem, now + timedelta(hours=5)), [])
+        self.assertEqual(model.highlights_due(model.Memory(recent=self.mem.recent), T("2026-09-27T20:00:00")), [])
+
+    def test_on_the_result(self):
+        self.mem.highlights["2523079"] = {"url": "https://www.youtube.com/watch?v=abc", "checked": "2026-09-24T08:00:00+00:00"}
+        _, attrs = model.present(self.team, self.mem, T("2026-09-24T09:00:00"), 24, 6)
+        self.assertEqual(attrs["results"][0]["video"], "https://www.youtube.com/watch?v=abc")
+        self.assertEqual(attrs["video"], "https://www.youtube.com/watch?v=abc")
+        back = model.Memory.from_dict(self.mem.to_dict())
+        self.assertEqual(back.highlights, self.mem.highlights)
+
+    def test_only_web_links(self):
+        self.assertIsNone(model.video_url("javascript:alert(1)"))
+        self.assertIsNone(model.video_url(""))
+        self.assertIsNone(model.video_url(None))
+        self.assertEqual(model.video_url(" https://youtu.be/x "), "https://youtu.be/x")
+        game = model.Event.parse(dict(AWAY_FT, strVideo="https://www.youtube.com/watch?v=first"))
+        self.assertEqual(model.game_video(game, {}), "https://www.youtube.com/watch?v=first")
+        self.assertEqual(model.highlights_due(model.Memory(recent=[game]), T("2026-09-24T08:00:00")), [])
+
+
 class LifecycleTests(unittest.TestCase):
     """A Glasgow Clan week: a home game on Sunday, then an away game the next Sunday."""
 

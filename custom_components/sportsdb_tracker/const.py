@@ -40,6 +40,10 @@ TODAY_CACHE_HOURS = 2
 SCORERS_DAYS = 3                         # finished games this recent get their scorers looked up
 SCORERS_RECHECK_MINUTES = 20             # a game whose goals are not final yet is asked again after this long
 
+# Highlights: TheSportsDB adds a game's video (strVideo, mostly YouTube) some hours after it ends, for most top leagues
+HIGHLIGHTS_DAYS = 3                      # finished games this recent are asked for their highlights until they have them
+HIGHLIGHTS_RECHECK_HOURS = 2             # a game without highlights yet is asked again after this long
+
 # Channels a game gets when the guides and TheSportsDB find none for that country. Mark, 18 Oct 2026: "by default have
 # all Norwegian ice hockey and football elite games on TV2" (TV 2 holds both; most Eliteserien games are on TV 2 Play
 # only, so no guide lists them). Matched by TheSportsDB league id, or by the league's name if an event has no id.
