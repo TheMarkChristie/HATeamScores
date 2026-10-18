@@ -16,14 +16,16 @@ def valid_app(app: str) -> bool:
     return bool(PACKAGE.match(app or "") or LINK.match(app or ""))
 
 
-def open_commands(app: str) -> list[str]:
+def open_commands(app: str, package: str | None = None) -> list[str]:
     """The commands to try in turn: a package through the TV launcher's entry, then the phone launcher's (an app that
-    only has the latter still opens); a link as a view intent."""
+    only has the latter still opens); a link as a view intent, pinned to `package` when given (a YouTube link would
+    otherwise ask which app to use, YouTube or the TV browser)."""
     if PACKAGE.match(app or ""):
         return [f"monkey -p {app} -c android.intent.category.LEANBACK_LAUNCHER 1",
                 f"monkey -p {app} -c android.intent.category.LAUNCHER 1"]
     if LINK.match(app or ""):
-        return [f"am start -a android.intent.action.VIEW -d '{app}'"]
+        pin = f" -p {package}" if package and PACKAGE.match(package) else ""
+        return [f"am start -a android.intent.action.VIEW -d '{app}'{pin}"]
     raise ValueError(f"not a package name or link: {app!r}")
 
 

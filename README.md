@@ -120,8 +120,9 @@ Scottish saltire for the UK channels, the Norwegian flag for Norway's (for examp
 
 **Usual channels by league.** Norwegian Eliteserien football and Fjordkraft-ligaen ice hockey games show `NO TV 2` when
 neither source finds a Norwegian channel (TV 2 holds both; most Eliteserien games are on TV 2 Play only, which no
-guide lists). UK basketball (Super League Basketball, men's and women's) shows DAZN in both the UK and Norway, as
-DAZN streams every game and has no guide. A row can name a team instead of a league: Valencia Basket's games show
+guide lists). UK men's basketball (Super League Basketball) shows DAZN in both the UK and Norway, as DAZN streams
+every game and has no guide; the women's league shows YouTube (SLB), its own YouTube channel, which streams the
+games. A row can name a team instead of a league: Valencia Basket's games show
 EuroLeague TV, Glasgow Clan's home games Clan TV, and St Johnstone's games St Johnstone TV when no channel at all is
 found for them (the club streams the games no broadcaster shows). A channel the guide names for the game, such as
 TV 2 Sport 1, is shown instead. These games also count in **On TV today**. The table is `DEFAULT_TV` in `const.py`,
@@ -178,8 +179,10 @@ Cast device. (The Android TV Remote integration is not used for apps: Google TV 
 package name that way since a Play Store change.)
 
 Built-in apps: TV 2 Play (TV 2, TV 2 Sport), Viaplay (V sport, TV3), NRK TV, Max (Eurosport Norge, TVNorge, FEM, VOX,
-REX), DAZN, EuroLeague TV, Prime Video, and for UK channels Sky Go, ITVX, BBC iPlayer, Premier Player, discovery+ (TNT
-Sports), Channel 4 and My5. `tv_apps` adds or replaces rows, with an app's package name or a link it opens.
+REX), DAZN, EuroLeague TV, Prime Video, YouTube, and for UK channels Sky Go, ITVX, BBC iPlayer, Premier Player,
+discovery+ (TNT Sports), Channel 4 and My5. The clubs' and leagues' own streams open as links: St Johnstone TV and Clan
+TV in the TV's browser, and the women's Super League Basketball channel (YouTube (SLB)) in the YouTube app. `tv_apps`
+adds or replaces rows, with an app's package name or a link it opens (and `pkg`: the app a link must open in).
 
 ```yaml
 tv_launch_countries: ["NO"]        # only Norwegian channels open apps in this house

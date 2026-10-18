@@ -192,6 +192,13 @@
     { country: "", match: /^DAZN/i, name: "DAZN", app: "com.dazn" },
     { country: "", match: /^EuroLeague TV/i, name: "EuroLeague TV", app: "dce.euroleague" },   // id from Mark
     { country: "", match: /^(Amazon )?Prime Video/i, name: "Prime Video", app: "com.amazon.amazonvideo.livingroom" },
+    // Mark, 18 Oct 2026: the clubs' and the women's league's own streams, as links (the box opens them in its TV browser;
+    // the YouTube one pinned to the YouTube app)
+    // the Women's British Basketball League channel (@SuperLeagueBasketballW), by its channel id
+    { country: "", match: /^YouTube \(SLB\)/i, name: "YouTube", app: "https://www.youtube.com/channel/UCCCT9UtlzXTDTQR5GFGRUZg", pkg: "com.google.android.youtube.tv" },
+    { country: "", match: /^YouTube\b/i, name: "YouTube", app: "com.google.android.youtube.tv" },
+    { country: "", match: /^St Johnstone TV/i, name: "St Johnstone TV", app: "https://tv.perthstjohnstonefc.co.uk/" },
+    { country: "", match: /^Clan TV/i, name: "Clan TV", app: "https://www.glasgowclan.tv/no" },
     { country: "UK", match: /^Sky Sports/i, name: "Sky Go", app: "com.bskyb.skygo" },
     { country: "UK", match: /^ITV/i, name: "ITVX", app: "air.ITVMobilePlayer" },
     { country: "UK", match: /^BBC/i, name: "BBC iPlayer", app: "bbc.iplayer.android" },
@@ -386,7 +393,9 @@
       l.msg = this._t("opening", l.app.name, dev ? dev.name : entity);
       this._redrawRow(l.key);
       try {
-        await this._hass.callService("sportsdb_tracker", "open_app", { device: entity, app: l.app.app, name: l.app.name });
+        const call = { device: entity, app: l.app.app, name: l.app.name };
+        if (l.app.pkg) call.package = l.app.pkg;
+        await this._hass.callService("sportsdb_tracker", "open_app", call);
         l.msg = this._t("opened", l.app.name, dev ? dev.name : entity);
         setTimeout(() => { if (this._launch === l) this._closeLaunch(); }, 4000);
       } catch (err) {

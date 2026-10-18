@@ -34,6 +34,7 @@ OPEN_APP_SCHEMA = vol.Schema({
     vol.Required("device"): cv.entity_id,
     vol.Required("app"): vol.All(cv.string, vol.Length(max=300)),
     vol.Optional("name"): vol.All(cv.string, vol.Length(max=80)),
+    vol.Optional("package"): vol.All(cv.string, vol.Length(max=120)),       # the app a link must open in
 })
 
 
@@ -95,9 +96,10 @@ async def _adb(hass: HomeAssistant, bridge: str, command: str) -> str:
 async def _open_app(call: ServiceCall) -> None:
     hass = call.hass
     device, app = str(call.data["device"]), str(call.data["app"]).strip()
+    package = str(call.data.get("package") or "").strip() or None
     label = str(call.data.get("name") or app)
     where = _device_name(hass, device)
-    if not valid_app(app):
+    if not valid_app(app) or (package and not valid_app(package)):
         raise HomeAssistantError(f"{label}: not an app id or link")
     bridge = _bridge_for(hass, device)
     if bridge:
@@ -108,7 +110,7 @@ async def _open_app(call: ServiceCall) -> None:
         async with locks.setdefault(bridge, asyncio.Lock()):            # one command's reply at a time per box
             await _adb(hass, bridge, WAKE)
             reply = ""
-            for command in open_commands(app):
+            for command in open_commands(app, package):
                 reply = await _adb(hass, bridge, command)
                 if opened(reply):
                     _LOGGER.debug("opened %s on %s through %s", app, where, bridge)

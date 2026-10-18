@@ -181,11 +181,12 @@ class LeagueDefaults(unittest.TestCase):
         uk = [{"channel": "Premier Sports 1", "country": "UK", "source": "guide"}]
         self.assertEqual([i["channel"] for i in tv.with_defaults(uk, "4358", None, self.DEFAULTS)], ["Premier Sports 1", "TV 2"])
 
-    def test_uk_basketball_is_on_dazn_in_both_countries(self):
-        for league_id, name in (("4431", "British Super League Basketball"), ("5127", "British Super League Basketball Women")):
+    def test_uk_basketball_dazn_and_the_womens_league_on_youtube(self):
+        for league_id, name, channel in (("4431", "British Super League Basketball", "DAZN"),
+                                         ("5127", "British Super League Basketball Women", "YouTube (SLB)")):
             self.assertEqual(tv.with_defaults([], league_id, None, const.DEFAULT_TV),
-                             [{"channel": "DAZN", "country": "UK", "source": "default"},
-                              {"channel": "DAZN", "country": "NO", "source": "default"}], name)
+                             [{"channel": channel, "country": "UK", "source": "default"},
+                              {"channel": channel, "country": "NO", "source": "default"}], name)
             self.assertEqual(len(tv.with_defaults([], None, name, const.DEFAULT_TV)), 2, "by name")
 
     def test_valencia_is_on_euroleague_tv_home_or_away_in_any_competition(self):

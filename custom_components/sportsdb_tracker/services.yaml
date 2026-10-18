@@ -16,3 +16,7 @@ open_app:
       example: TV 2 Play
       selector:
         text:
+    package:
+      example: com.google.android.youtube.tv
+      selector:
+        text:

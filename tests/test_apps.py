@@ -28,6 +28,10 @@ class Apps(unittest.TestCase):
             "monkey -p no.tv2.sumo -c android.intent.category.LAUNCHER 1"])
         self.assertEqual(apps.open_commands("https://play.tv2.no/direkte"),
                          ["am start -a android.intent.action.VIEW -d 'https://play.tv2.no/direkte'"])
+        self.assertEqual(apps.open_commands("https://www.youtube.com/@superleaguebasketballw", "com.google.android.youtube.tv"),
+                         ["am start -a android.intent.action.VIEW -d 'https://www.youtube.com/@superleaguebasketballw' -p com.google.android.youtube.tv"])
+        self.assertEqual(apps.open_commands("https://tv.perthstjohnstonefc.co.uk/", "x; reboot"),
+                         ["am start -a android.intent.action.VIEW -d 'https://tv.perthstjohnstonefc.co.uk/'"], "a bad package is ignored")
         with self.assertRaises(ValueError):
             apps.open_commands("com.dazn; reboot")
 

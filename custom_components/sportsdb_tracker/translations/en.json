@@ -62,6 +62,10 @@
         "name": {
           "name": "Name",
           "description": "The app's name, for messages."
+        },
+        "package": {
+          "name": "Open in",
+          "description": "For a link: the app it must open in (a YouTube link otherwise asks which app to use)."
         }
       }
     }

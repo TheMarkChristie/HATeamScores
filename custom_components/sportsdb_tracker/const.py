@@ -55,8 +55,9 @@ DEFAULT_TV = [
     # Mark, 18 Oct 2026: "All UK Basketball is on DAZN in UK and Norway" (Super League Basketball, men's and women's)
     {"league_id": "4431", "league": "British Super League Basketball", "country": "UK", "channel": "DAZN"},
     {"league_id": "4431", "league": "British Super League Basketball", "country": "NO", "channel": "DAZN"},
-    {"league_id": "5127", "league": "British Super League Basketball Women", "country": "UK", "channel": "DAZN"},
-    {"league_id": "5127", "league": "British Super League Basketball Women", "country": "NO", "channel": "DAZN"},
+    # Mark, 18 Oct 2026: "Galedonia Gladiators woman games are on youtube https://www.youtube.com/@superleaguebasketballw"
+    {"league_id": "5127", "league": "British Super League Basketball Women", "country": "UK", "channel": "YouTube (SLB)"},
+    {"league_id": "5127", "league": "British Super League Basketball Women", "country": "NO", "channel": "YouTube (SLB)"},
     # Mark, 18 Oct 2026: "Valencia are on EurosBasket TV" (EuroLeague TV, the EuroLeague's own service), Liga ACB and EuroLeague
     {"team_id": "135097", "team": "Valencia Basket", "country": "UK", "channel": "EuroLeague TV"},
     {"team_id": "135097", "team": "Valencia Basket", "country": "NO", "channel": "EuroLeague TV"},
