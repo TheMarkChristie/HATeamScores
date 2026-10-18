@@ -32,6 +32,14 @@ GUIDE_RETRY_MINUTES = 30                 # after a failed download
 TV_DAYS_AHEAD = 14                       # fixtures this close get their channels looked up
 SPORTSDB_TV_HOURS = 12                   # TheSportsDB's broadcasters for a game are asked again after this long
 
+# Channels a game gets when the guides and TheSportsDB find none for that country. Mark, 18 Oct 2026: "by default have
+# all Norwegian ice hockey and football elite games on TV2" (TV 2 holds both; most Eliteserien games are on TV 2 Play
+# only, so no guide lists them). Matched by TheSportsDB league id, or by the league's name if an event has no id.
+DEFAULT_TV = [
+    {"league_id": "4358", "league": "Norwegian Eliteserien", "country": "NO", "channel": "TV 2"},
+    {"league_id": "4926", "league": "Norwegian Fjordkraft-ligaen", "country": "NO", "channel": "TV 2"},
+]
+
 # the Team Scores card, served by the integration from its www folder and registered as a dashboard resource
 URL_BASE = "/sportsdb_tracker"
 CARD_FILE = "team-scores-card.js"

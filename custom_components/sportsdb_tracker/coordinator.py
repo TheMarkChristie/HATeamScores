@@ -24,6 +24,7 @@ from .const import (
     DEFAULT_API_KEY,
     DEFAULT_PRE_HOURS,
     DEFAULT_RESULTS_HOURS,
+    DEFAULT_TV,
     DOMAIN,
     STORAGE_VERSION,
     SPORTSDB_TV_HOURS,
@@ -32,7 +33,7 @@ from .const import (
     UPDATE_MINUTES_LIVE,
 )
 from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
-from .tv import guide_listings, merge, sportsdb_listings, team_needles
+from .tv import guide_listings, merge, sportsdb_listings, team_needles, with_defaults
 
 _LOGGER = logging.getLogger(__name__)
 RETRY_MINUTES = 3
@@ -148,7 +149,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
                     mem.tv_checked[e.id] = now.isoformat()
                 except SportsDBError as err:
                     _LOGGER.debug("%s: broadcasters of %s not read: %s", self.name, e.id, err)
-            mem.tv[e.id] = merge(found, sportsdb)
+            mem.tv[e.id] = with_defaults(merge(found, sportsdb), e.league_id, e.league, DEFAULT_TV)
         keep = {e.id for e in mem.upcoming}
         mem.tv = {k: v for k, v in mem.tv.items() if k in keep}
         mem.tv_checked = {k: v for k, v in mem.tv_checked.items() if k in keep}

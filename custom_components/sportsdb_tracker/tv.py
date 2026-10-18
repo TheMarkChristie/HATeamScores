@@ -301,3 +301,19 @@ def merge(*lists: Iterable[dict[str, str]]) -> list[dict[str, str]]:
                 out.append(item)
     order = {"UK": 0, "NO": 1}
     return sorted(out, key=lambda i: order.get(i["country"], 9))
+
+
+def with_defaults(listings: list[dict[str, str]], league_id: str | None, league: str | None,
+                  defaults: Iterable[dict[str, str]]) -> list[dict[str, str]]:
+    """A league's usual channel for a country (Eliteserien: TV 2 in Norway), added only when nothing was found for
+    that country: a channel the guide names for the game (TV 2 Sport 1) is more exact and wins."""
+    out = list(listings)
+    have = {i["country"] for i in out}
+    name = (league or "").strip().lower()
+    for d in defaults:
+        hit = (league_id and str(d.get("league_id") or "") == str(league_id)) or (name and str(d.get("league") or "").strip().lower() == name)
+        if hit and d["country"] not in have:
+            out.append({"channel": d["channel"], "country": d["country"], "source": "default"})
+            have.add(d["country"])
+    order = {"UK": 0, "NO": 1}
+    return sorted(out, key=lambda i: order.get(i["country"], 9))

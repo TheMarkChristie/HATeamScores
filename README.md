@@ -109,6 +109,11 @@ Under each coming game the card shows its channels, UK first then Norway, for ex
   streaming rights no guide carries, such as Amazon Prime Video. On the free key TheSportsDB returns two broadcasters
   from any country, so this part is thin; with a premium key it returns them all.
 
+**Usual channels by league.** Norwegian Eliteserien football and Fjordkraft-ligaen ice hockey games show `NO TV 2` when
+neither source finds a Norwegian channel (TV 2 holds both; most Eliteserien games are on TV 2 Play only, which no
+guide lists). A channel the guide names for the game, such as TV 2 Sport 1, is shown instead. The table is
+`DEFAULT_TV` in `const.py`, matched by TheSportsDB's league id.
+
 Not every game is listed anywhere. Services that sell events rather than run channels (DAZN, VG+ Sport, TV 2 Play's
 extra streams) have no guide, and TheSportsDB's broadcaster data is crowd-sourced and often empty for Scottish and
 Norwegian domestic games. The sensor carries the channels too: `tv` on each fixture, and `tv_network` for the game the

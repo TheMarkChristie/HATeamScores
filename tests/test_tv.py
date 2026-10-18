@@ -165,5 +165,25 @@ class OnTheSensor(unittest.TestCase):
         self.assertEqual(attrs["tv_network"], "TNT Sports 1")
 
 
+class LeagueDefaults(unittest.TestCase):
+    DEFAULTS = [{"league_id": "4358", "league": "Norwegian Eliteserien", "country": "NO", "channel": "TV 2"},
+                {"league_id": "4926", "league": "Norwegian Fjordkraft-ligaen", "country": "NO", "channel": "TV 2"}]
+
+    def test_eliteserien_and_fjordkraft_ligaen_are_on_tv2_when_nothing_else_is_found(self):
+        self.assertEqual(tv.with_defaults([], "4358", "Norwegian Eliteserien", self.DEFAULTS),
+                         [{"channel": "TV 2", "country": "NO", "source": "default"}])
+        self.assertEqual(tv.with_defaults([], None, "Norwegian Fjordkraft-ligaen", self.DEFAULTS)[0]["channel"], "TV 2", "by name")
+
+    def test_the_guides_exact_channel_wins_and_uk_listings_stay(self):
+        found = [{"channel": "TV 2 Sport 1", "country": "NO", "source": "guide"}]
+        self.assertEqual(tv.with_defaults(found, "4926", None, self.DEFAULTS), found)
+        uk = [{"channel": "Premier Sports 1", "country": "UK", "source": "guide"}]
+        self.assertEqual([i["channel"] for i in tv.with_defaults(uk, "4358", None, self.DEFAULTS)], ["Premier Sports 1", "TV 2"])
+
+    def test_other_leagues_are_left_alone(self):
+        self.assertEqual(tv.with_defaults([], "4328", "English Premier League", self.DEFAULTS), [])
+        self.assertEqual(tv.with_defaults([], "4380", "Norwegian 1. Divisjon", self.DEFAULTS), [])
+
+
 if __name__ == "__main__":
     unittest.main()
