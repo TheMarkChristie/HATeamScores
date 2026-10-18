@@ -198,11 +198,12 @@ class LeagueDefaults(unittest.TestCase):
                          "another ACB game")
         self.assertEqual(tv.with_defaults([], "4408", "Spanish Liga ACB", const.DEFAULT_TV), [], "no teams given")
 
-    def test_clan_tv_for_glasgow_clan_home_games_only(self):
+    def test_clan_tv_for_every_glasgow_clan_game(self):
         home = tv.with_defaults([], "4381", "UK Elite Ice Hockey League", const.DEFAULT_TV, ("136520", "136530"))
         self.assertEqual([(i["country"], i["channel"]) for i in home], [("UK", "Clan TV"), ("NO", "Clan TV")])
-        self.assertEqual(tv.with_defaults([], "4381", "UK Elite Ice Hockey League", const.DEFAULT_TV, ("136519", "136520")), [],
-                         "away at Fife")
+        # Mark, 18 Oct 2026: "Glasgow still need to appear in the sports list if they are away from home"
+        away = tv.with_defaults([], "4381", "UK Elite Ice Hockey League", const.DEFAULT_TV, ("136519", "136520"))
+        self.assertEqual([(i["country"], i["channel"]) for i in away], [("UK", "Clan TV"), ("NO", "Clan TV")], "away at Fife")
         on_tv = [{"channel": "Premier Sports 1", "country": "UK", "source": "guide"}]
         self.assertEqual([(i["country"], i["channel"]) for i in
                           tv.with_defaults(on_tv, "4381", None, const.DEFAULT_TV, ("136520", "136530"))],

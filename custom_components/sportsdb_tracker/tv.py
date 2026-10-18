@@ -387,7 +387,15 @@ def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], d
         start = (start if start.tzinfo else start.replace(tzinfo=UTC)).astimezone(UTC)
         if start.astimezone(tz).date() != day:
             continue
-        ends = start + timedelta(minutes=GAME_MINUTES.get(str(e.get("strSport") or ""), DEFAULT_GAME_MINUTES))
+        ends = None
+        if e.get("strEndTimestamp"):                    # a club stream's own end time (streams.py)
+            try:
+                ends = datetime.fromisoformat(str(e["strEndTimestamp"]))
+                ends = (ends if ends.tzinfo else ends.replace(tzinfo=UTC)).astimezone(UTC)
+            except ValueError:
+                ends = None
+        if ends is None or ends <= start:
+            ends = start + timedelta(minutes=GAME_MINUTES.get(str(e.get("strSport") or ""), DEFAULT_GAME_MINUTES))
         if now is not None and now >= ends:
             continue                                          # over: not on TV any more
         seen.add(eid)

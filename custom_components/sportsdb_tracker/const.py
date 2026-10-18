@@ -62,9 +62,10 @@ DEFAULT_TV = [
     {"team_id": "135097", "team": "Valencia Basket", "country": "UK", "channel": "EuroLeague TV"},
     {"team_id": "135097", "team": "Valencia Basket", "country": "NO", "channel": "EuroLeague TV"},
     # Mark, 18 Oct 2026: "if Glasgow Clan are playing at home its on Clan TV and if St Johnstone are not on TV its on
-    # StJohnstone TV"
-    {"team_id": "136520", "team": "Glasgow Clan", "side": "home", "country": "UK", "channel": "Clan TV"},
-    {"team_id": "136520", "team": "Glasgow Clan", "side": "home", "country": "NO", "channel": "Clan TV"},
+    # StJohnstone TV"; later that day: "Glasgow still need to appear in the sports list if they are away from home", so
+    # every Glasgow Clan game, home or away, shows Clan TV
+    {"team_id": "136520", "team": "Glasgow Clan", "country": "UK", "channel": "Clan TV"},
+    {"team_id": "136520", "team": "Glasgow Clan", "country": "NO", "channel": "Clan TV"},
     {"team_id": "133639", "team": "St Johnstone", "only_if_none": True, "country": "UK", "channel": "St Johnstone TV"},
     {"team_id": "133639", "team": "St Johnstone", "only_if_none": True, "country": "NO", "channel": "St Johnstone TV"},
 ]
@@ -104,6 +105,13 @@ SPORT_ICON = {
     "Golf": "mdi:golf",
 }
 DEFAULT_ICON = "mdi:scoreboard"
+
+# Club streams with a schedule of their own, read for the games TheSportsDB does not list (streams.py): Clan TV
+# streams Glasgow Clan's Challenge Cup games, which TheSportsDB does not have
+STREAMS = [
+    {"key": "clantv", "url": "https://www.glasgowclan.tv/api/gb/nowNextLaterApp", "channel": "Clan TV",
+     "team_id": "136520", "team": "Glasgow Clan", "sport": "Ice Hockey"},
+]
 
 # How long a game runs, kick-off to final whistle, including the breaks (minutes): the sensor shows the game as
 # in play for this long, then waits for TheSportsDB to post the result

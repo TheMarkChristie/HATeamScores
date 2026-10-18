@@ -123,11 +123,16 @@ neither source finds a Norwegian channel (TV 2 holds both; most Eliteserien game
 guide lists). UK men's basketball (Super League Basketball) shows DAZN in both the UK and Norway, as DAZN streams
 every game and has no guide; the women's league shows YouTube (SLB), its own YouTube channel, which streams the
 games. A row can name a team instead of a league: Valencia Basket's games show
-EuroLeague TV, Glasgow Clan's home games Clan TV, and St Johnstone's games St Johnstone TV when no channel at all is
+EuroLeague TV, Glasgow Clan's games (home and away) Clan TV, and St Johnstone's games St Johnstone TV when no channel at all is
 found for them (the club streams the games no broadcaster shows). A channel the guide names for the game, such as
 TV 2 Sport 1, is shown instead. These games also count in **On TV today**. The table is `DEFAULT_TV` in `const.py`,
 matched by TheSportsDB's league or team id; on a team row, `side: home` limits it to home games and `only_if_none` to
 games with no channel found.
+
+**Club streams.** Some games are not in TheSportsDB at all: Glasgow Clan's Challenge Cup games, for one. Clan TV's own
+schedule (its now-next-later feed, read at most every 15 minutes) adds the games it streams to On TV today, with Clan TV
+as the channel and the stream's own end time, unless TheSportsDB already has the same match that day. The feeds are
+`STREAMS` in `const.py`.
 
 Not every game is listed anywhere. Services that sell events rather than run channels (DAZN, VG+ Sport, TV 2 Play's
 extra streams) have no guide, and TheSportsDB's broadcaster data is crowd-sourced and often empty for Scottish and

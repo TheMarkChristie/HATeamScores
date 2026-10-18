@@ -8,24 +8,30 @@ on a phone in Scotland and a tablet in Norway. The games of the day need a premi
 asked again after five minutes, the last good list is used meanwhile, and the answer names it."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date
 from time import monotonic
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
 from .api import SportsDBError, get_client
-from .const import CONF_API_KEY, DEFAULT_API_KEY, DEFAULT_TV, DOMAIN, TODAY_CACHE_HOURS, TODAY_SPORTS
+from .const import CONF_API_KEY, DEFAULT_API_KEY, DEFAULT_TV, DOMAIN, STREAMS, TODAY_CACHE_HOURS, TODAY_SPORTS
 from .guide import get_guide
+from .streams import missing_from, stream_games
 from .tv import today_on_tv, utc_dates
 
 _LOGGER = logging.getLogger(__name__)
 FAILED_RETRY_SECONDS = 300
+STREAM_CACHE_SECONDS = 900
+STREAM_HEADERS = {"Accept": "application/json", "User-Agent": "Mozilla/5.0 (Home Assistant; Team Scores)"}
 
 
 def _key(hass: HomeAssistant) -> str:
@@ -41,6 +47,31 @@ class TodayStore:
         self._hass = hass
         # (UTC date, sport) -> (good until, games, read cleanly)
         self._days: dict[tuple[str, str], tuple[float, list[dict[str, Any]], bool]] = {}
+        # stream key -> (good until, its games)
+        self._streams: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+
+    async def _stream_games(self) -> list[dict[str, Any]]:
+        """The club streams' games (streams.py), each feed read at most every 15 minutes; one that cannot be read keeps
+        its last games and is asked again in five."""
+        out: list[dict[str, Any]] = []
+        for stream in STREAMS:
+            hit = self._streams.get(stream["key"])
+            if hit and monotonic() < hit[0]:
+                out += hit[1]
+                continue
+            try:
+                async with async_get_clientsession(self._hass).get(
+                        stream["url"], headers=STREAM_HEADERS, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                    resp.raise_for_status()
+                    feed = await resp.json(content_type=None)
+                games = stream_games(feed if isinstance(feed, dict) else None, stream)
+                self._streams[stream["key"]] = (monotonic() + STREAM_CACHE_SECONDS, games)
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+                _LOGGER.info("%s's schedule not read (%s); asking again in five minutes", stream["channel"], err)
+                games = hit[1] if hit else []
+                self._streams[stream["key"]] = (monotonic() + FAILED_RETRY_SECONDS, games)
+            out += games
+        return out
 
     async def _events(self, key: str, days: list[str]) -> tuple[list[dict[str, Any]], list[str]]:
         client = get_client(self._hass)
@@ -74,6 +105,8 @@ class TodayStore:
             return {"day": today.isoformat(), "games": [], "status": "guides_loading"}
         key = _key(self._hass)
         events, failed = await self._events(key, utc_dates(today, tz))
+        # and the club streams' games TheSportsDB does not have (Glasgow Clan's Challenge Cup games on Clan TV)
+        events = events + missing_from(await self._stream_games(), events)
         games = await self._hass.async_add_executor_job(today_on_tv, events, programmes, today, tz, DEFAULT_TV, dt_util.utcnow())
         return {"day": today.isoformat(), "games": games, "status": "ok", "premium": key != DEFAULT_API_KEY,
                 "failed": failed}
