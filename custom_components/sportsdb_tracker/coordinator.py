@@ -31,6 +31,7 @@ from .const import (
     DOMAIN,
     STORAGE_VERSION,
     SPORTSDB_TV_HOURS,
+    STARTUP_FOLLOW_UP_MINUTES,
     TV_DAYS_AHEAD,
     UPDATE_MINUTES_IDLE,
     UPDATE_MINUTES_LIVE,
@@ -105,6 +106,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         now = dt_util.utcnow()
         mem, key = self.memory, self.api_key
         failed = False
+        startup = self.data is None
         try:
             if not self._team_fresh:
                 raw = await self.client.lookup_team(key, self.team.id)
@@ -135,6 +137,9 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         self.update_interval = self._interval(mem, now)
         if failed:                                   # a refused read is tried again soon, not in half an hour
             self.update_interval = min(self.update_interval, timedelta(minutes=RETRY_MINUTES))
+        if startup:                                  # the refresh with the channels, scorers and highlights, soon
+            spread = timedelta(seconds=sum(map(ord, self.entry.entry_id)) % 120)
+            self.update_interval = min(self.update_interval, timedelta(minutes=STARTUP_FOLLOW_UP_MINUTES) + spread)
         return mem
 
     def _extra_names(self, team_id: str | None) -> list[str]:

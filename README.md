@@ -87,7 +87,7 @@ results_days: 1
 | `tv_countries` | `[UK, NO]` | Which countries' channels to show, in this order |
 | `layout` | `columns` | `columns` puts the days side by side when the card is wide enough (a tablet or desktop); `list` keeps one long column. A phone always shows one column |
 | `day_width` | 300 | The narrowest a day column may be, in pixels |
-| `show_goals` | true | Tap a game with goals to see who scored |
+| `show_goals` | true | Who scored, in a game's details (tap any game) |
 | `show_highlights` | true | A **Highlights** link under a finished game that has a video |
 | `show_tv_button` | true | An **On TV today** button in the card's header |
 
@@ -138,11 +138,16 @@ the day (football, ice hockey, American football, basketball, rugby and handball
 guides with the same rule as a fixture's channels, so only live broadcasts count, not replays or highlights. The full
 list needs a premium TheSportsDB key; the free key returns only a few games a day.
 
-### Who scored
+### A game's details and who scored
 
-A game with goals shows **Goals** at the end of its venue line. Tap the game (or press Enter on it) and it opens to list
-the goals in match order: the minute, the scoring side's badge, the scorer and, underneath, the assist. Ice hockey
-shows the period and clock (`P2 13:13`); the NFL shows its scoring plays. A game in play lists the goals so far.
+Tap any game (or press Enter on the **Details** or **Goals** marker at the end of its venue line) and it opens: the goals
+in match order (the minute, the scoring side's badge, the scorer and, underneath, the assist), then the competition and
+round, the day and time, the venue, every channel showing it (the line under the game shows the first three per
+country), and a link to the match page on TheSportsDB. Ice hockey shows the period and clock (`P2 13:13`); the NFL shows
+its scoring plays. A game in play lists the goals so far. The marker reads **Goals** when there are goals to list.
+
+After a restart the first update leaves out the channels, scorers and highlights so Home Assistant starts quickly; the
+next, three to five minutes later, fills them in.
 
 Scorers come from ESPN's public scores service for the competitions it covers (Premier League, EFL Cup, FA Cup,
 Scottish Premiership and cups, Champions League, Europa and Conference League, Nations League, Eliteserien, MLS, NFL,

@@ -413,7 +413,7 @@ def _brief(game: Event | None, now: datetime, to_local: ToLocal, tv: dict[str, l
             "time": f"{local:%H:%M}" if local and game.time_known else None,
             "when": kickoff_text(local, to_local(now), game.time_known) if local else None,
             "venue": game.venue, "country": game.country, "league": game.league, "league_logo": game.league_badge,
-            "sport": game.sport, "home_id": game.home_id, "home": game.home_name, "home_badge": game.home_badge,
+            "round": game.round, "sport": game.sport, "home_id": game.home_id, "home": game.home_name, "home_badge": game.home_badge,
             "away_id": game.away_id, "away": game.away_name, "away_badge": game.away_badge,
             "home_score": game.home_score, "away_score": game.away_score, "status": game.status, "finished": finished,
             "live": bool(game.start and not finished and now >= game.start and (end is None or now < end + timedelta(minutes=RESULT_WAIT_MINUTES))),

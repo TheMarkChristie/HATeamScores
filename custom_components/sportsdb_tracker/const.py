@@ -74,6 +74,8 @@ CARD_FILE = "team-scores-card.js"
 
 UPDATE_MINUTES_IDLE = 30                 # between checks of the next fixture
 UPDATE_MINUTES_LIVE = 10                 # while a game is on, or its result is awaited
+STARTUP_FOLLOW_UP_MINUTES = 3            # the refresh at start-up skips channels, scorers and highlights; the next comes
+                                         # this soon (plus up to two minutes, spread over the teams) to fill them in
 NEXT_CHECK_MINUTES = 30                  # re-read the next fixture this often (moved games, postponements)
 LOOKUP_GRACE_HOURS = 24                  # give up on a fixture this long after its expected end if the API loses it
 

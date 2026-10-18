@@ -15,7 +15,7 @@
  * show_tv: true               the UK and Norwegian channels under each coming game
  * layout: columns             columns: the days side by side when the card is wide enough; list: one long column
  * day_width: 300              the narrowest a day column may be, in pixels
- * show_goals: true             tap a game with goals to see who scored (minute, scorer, assist)
+ * show_goals: true             who scored (minute, scorer, assist) in a game's details; tap any game for them
  * show_highlights: true        a Highlights link (YouTube) under a finished game that has one
  * show_tv_button: true         an On TV today button: every game on UK or Norwegian TV today, by time
  * tv_countries: [UK, NO]       which countries' channels to show
@@ -94,6 +94,15 @@
     .goal .ast { display: block; font-size: 0.9em; color: var(--secondary-text-color); }
     .goal .note { color: var(--secondary-text-color); }
     .detail .gap { font-size: 0.78em; color: var(--secondary-text-color); padding-top: 3px; }
+    .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 4px; font-size: 0.85em;
+             margin-left: calc(3.2em + 8px); padding-top: 2px; }
+    .goal + .facts, .gap + .facts { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--divider-color, rgba(127,127,127,0.3)); }
+    .facts .k { color: var(--secondary-text-color); }
+    .facts .v { min-width: 0; overflow-wrap: anywhere; color: var(--primary-text-color); }
+    .facts .v .grp { display: block; }
+    .facts .flag { display: inline-block; width: 18px; height: 12px; margin-right: 6px; vertical-align: -1px; border-radius: 2px;
+                   box-shadow: 0 0 0 1px rgba(127,127,127,0.35); }
+    .facts a { color: var(--primary-color); }
     .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 2px 16px; min-height: 36px; }
     .bar .head { padding: 0; flex: 1 1 auto; min-width: 0; }
     .tvbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.85em; cursor: pointer;
@@ -389,15 +398,14 @@
           ` title="${esc(g.league || "")}" loading="lazy">` : "";
       const key = String(g.event_id || (g.name || "") + g.date);
       const goals = this._config.show_goals && Array.isArray(g.goals) ? g.goals : [];
-      const open = goals.length > 0 && this._open.has(key);
-      const word = g.sport === "American Football" ? "Scoring" : "Goals";
-      const more = goals.length
-        ? `<span class="more" role="button" tabindex="0" aria-expanded="${open}"` +
+      const open = this._open.has(key);
+      const word = goals.length ? (g.sport === "American Football" ? "Scoring" : "Goals") : "Details";
+      const more = `<span class="more" role="button" tabindex="0" aria-expanded="${open}"` +
           ` aria-label="${esc(`${g.home} v ${g.away}: ${open ? "hide" : "show"} ${word.toLowerCase()}`)}">` +
-          `${open ? `${word} &#9652;` : `${word} &#9662;`}</span>` : "";
+          `${open ? `${word} &#9652;` : `${word} &#9662;`}</span>`;
       const subText = esc(subParts.join(" · "));
-      const sub = subParts.length || more ? `<div class="sub"><span class="subt">${subText}</span>${more}</div>` : "";
-      const detail = open ? this._goals(g, goals) : "";
+      const sub = `<div class="sub"><span class="subt">${subText}</span>${more}</div>`;
+      const detail = open ? this._details(g, goals, t, fmt) : "";
       let tv = "";
       if (this._config.show_tv && !g.finished && Array.isArray(g.tv) && g.tv.length) {
         const groups = [];
@@ -416,8 +424,7 @@
           `<svg viewBox="0 0 28 20" aria-hidden="true"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5.5v9l8-4.5z" fill="#fff"/></svg>` +
           `<span>Highlights</span></a></div>`;
       }
-      const attrs = goals.length ? ` data-ev="${esc(key)}"` : "";
-      return `<div class="row${first ? " first" : ""}${goals.length ? " click" : ""}"${attrs}>` +
+      return `<div class="row click${first ? " first" : ""}" data-ev="${esc(key)}">` +
         `<div class="time ${timeCls}">${esc(time)}${logo}</div>` +
         side("home", g.home_id, g.home, g.home_badge, homeLost) +
         `<div class="score hs ${scoreCls}${homeLost ? " loser" : ""}">${hs}</div>` +
@@ -434,14 +441,41 @@
         const name = side === "home" ? g.home : side === "away" ? g.away : "";
         return b ? `<img class="b" src="${esc(b)}" alt="${esc(name)}">` : `<i class="b none" title="${esc(name)}"></i>`;
       };
-      let html = `<div class="detail">`;
+      let html = "";
       for (const x of goals) {
         html += `<div class="goal${long ? " long" : ""}"><span class="min">${esc(x.time)}</span>${badge(x.side)}<span class="who">${esc(x.player)}` +
           (x.note ? ` <span class="note">(${esc(x.note)})</span>` : "") +
           (x.assist ? `<span class="ast">${esc(x.assist)}</span>` : "") + `</span></div>`;
       }
       if (g.goals_complete === false) html += `<div class="gap">Not every goal is listed for this game.</div>`;
-      return html + `</div>`;
+      return html;
+    }
+
+    /* what tapping a game opens: who scored, then the competition and round, when, where, every channel (not only the
+       first three per country), the match page on TheSportsDB */
+    _details(g, goals, t, fmt) {
+      const facts = [];
+      const round = Number(g.round);
+      const comp = [g.league, round > 0 && round < 100 ? `Round ${round}` : ""].filter(Boolean).join(" · ");
+      if (comp) facts.push(["Competition", esc(comp)]);
+      const when = new Date(t);
+      facts.push(["When", esc(`${fmt.head.format(when)}, ${g.time || fmt.time.format(when)}`)]);
+      const where = [g.venue, g.country].filter(Boolean).join(", ");
+      if (where) facts.push(["Venue", esc(where)]);
+      if (!g.finished && Array.isArray(g.tv) && g.tv.length) {
+        const groups = [];
+        for (const cc of this._config.tv_countries || ["UK", "NO"]) {
+          const names = g.tv.filter((i) => i.country === cc).map((i) => i.channel);
+          if (names.length) groups.push(`<span class="grp">${flag(cc)}${esc(names.join(", "))}</span>`);
+        }
+        if (groups.length) facts.push(["TV", groups.join("")]);
+      }
+      if (g.event_id) {
+        const url = `https://www.thesportsdb.com/event/${encodeURIComponent(g.event_id)}`;
+        facts.push(["More", `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Match page on TheSportsDB</a>`]);
+      }
+      return `<div class="detail">${goals.length ? this._goals(g, goals) : ""}<div class="facts">` +
+        facts.map(([k, v]) => `<span class="k">${k}</span><span class="v">${v}</span>`).join("") + `</div></div>`;
     }
   }
 
