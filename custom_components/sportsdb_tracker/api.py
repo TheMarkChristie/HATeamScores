@@ -118,3 +118,8 @@ class SportsDBClient:
         """A game's events: goals, cards, substitutions (the free key returns the first five)."""
         data = await self._get(key, f"lookuptimeline.php?id={quote(event_id)}")
         return data.get("timeline") or []
+
+    async def events_day(self, key: str, day: str, sport: str) -> list[dict[str, Any]]:
+        """Every game of a sport on a date (YYYY-MM-DD): a premium key returns all of them, the free key a few."""
+        data = await self._get(key, f"eventsday.php?d={quote(day)}&s={quote(sport)}")
+        return data.get("events") or []

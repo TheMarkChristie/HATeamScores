@@ -32,6 +32,10 @@ GUIDE_RETRY_MINUTES = 30                 # after a failed download
 TV_DAYS_AHEAD = 14                       # fixtures this close get their channels looked up
 SPORTSDB_TV_HOURS = 12                   # TheSportsDB's broadcasters for a game are asked again after this long
 
+# Today on TV (today.py): the sports whose games of the day are checked against the guides, and how long they are kept
+TODAY_SPORTS = ["Soccer", "Ice Hockey", "American Football", "Basketball", "Rugby", "Handball"]
+TODAY_CACHE_HOURS = 2
+
 # Who scored (scorers.py): ESPN first, TheSportsDB's timeline for football games ESPN does not cover
 SCORERS_DAYS = 3                         # finished games this recent get their scorers looked up
 SCORERS_RECHECK_MINUTES = 20             # a game whose goals are not final yet is asked again after this long

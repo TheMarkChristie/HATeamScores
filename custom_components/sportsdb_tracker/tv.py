@@ -22,7 +22,7 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone, tzinfo
 from typing import Any, Iterable
 
 UTC = timezone.utc
@@ -59,8 +59,12 @@ def channel_name(display: str) -> str:
     return name
 
 
+# the UK guide carries Irish channels too (Virgin Media Two shows the NFL in Ireland, not the UK)
+_IRISH = re.compile(r"^(rte|virgin\.?media|tg4|irish)", re.I)
+
+
 def guide_channel_wanted(channel_id: str) -> bool:
-    return not _NOT_TV.search(channel_id)
+    return not _NOT_TV.search(channel_id) and not _IRISH.search(channel_id)
 
 
 # Allente sells to Norway but carries Danish, Swedish and Finnish channels too, NRK1 in every region, and copies with
@@ -196,7 +200,10 @@ def fold(text: str) -> str:
 # words that say nothing about which team it is
 _GENERIC = {"fc", "afc", "cf", "sc", "il", "bk", "fk", "sk", "if", "hc", "ihc", "bc", "ac", "as", "ss", "sv", "the", "and", "of",
             "club", "city", "united", "utd", "town", "rovers", "athletic", "county", "albion", "wanderers", "hotspur", "basket",
-            "basketball", "football", "hockey", "ishockey", "manchester", "sheffield", "bristol", "nottingham", "real", "sporting"}
+            "basketball", "football", "hockey", "ishockey", "manchester", "sheffield", "bristol", "nottingham", "real", "sporting",
+            # a side or a squad, not a team: Chelsea Women, Hammarby Damer, Real Madrid II
+            "women", "womens", "ladies", "kvinner", "dam", "damer", "ii", "iii", "u17", "u19", "u20", "u21", "u23", "reserves",
+            "academy", "rugby", "rfc", "rlfc", "league"}
 # what the guides call teams whose full names they never print
 _ALIASES = {
     "manchester city": ["man city"], "manchester united": ["man utd", "man united", "manchester utd"],
@@ -230,11 +237,21 @@ def team_needles(name: str, sport: str | None = None, extra: Iterable[str] = ())
         if e and e.strip():
             needles.add(fold(e).strip())
     needles.update(w for w in words if len(w) >= 4 and w not in _GENERIC)
-    needles.update(fold(w).strip() for w in re.split(r"[\s\-./]+", name) if 2 <= len(w) <= 4 and w.isupper() and w.isalpha())
+    needles.update(fold(w).strip() for w in re.split(r"[\s\-./]+", name)
+                   if 2 <= len(w) <= 4 and w.isupper() and w.isalpha() and fold(w).strip() not in _GENERIC)   # AEK, PSG; never FC or BK
     if sport in _US_SPORTS and len(words) >= 2:
         needles.add(words[-1])
         needles.add(" ".join(words[-2:]))
     return sorted((n for n in needles if n and len(n) >= 2), key=len, reverse=True)
+
+
+def pair_needles(home: str, away: str, sport: str | None = None, home_extra: Iterable[str] = (),
+                 away_extra: Iterable[str] = ()) -> tuple[list[str], list[str]]:
+    """Both teams' needles, without the words they share: in Makkabi Berlin v Füchse Berlin, "berlin" names neither."""
+    h = team_needles(home, sport, home_extra)
+    a = team_needles(away, sport, away_extra)
+    shared = set(h) & set(a)
+    return [n for n in h if n not in shared] or h, [n for n in a if n not in shared] or a
 
 
 def names_team(text: str, needles: Iterable[str]) -> bool:
@@ -317,3 +334,40 @@ def with_defaults(listings: list[dict[str, str]], league_id: str | None, league:
             have.add(d["country"])
     order = {"UK": 0, "NO": 1}
     return sorted(out, key=lambda i: order.get(i["country"], 9))
+
+
+# ---- today on TV ----------------------------------------------------------------------------------------------------
+
+def today_on_tv(events: Iterable[dict[str, Any]], programmes: list[Programme], day: date, tz: tzinfo) -> list[dict[str, Any]]:
+    """Every game of the local `day` (TheSportsDB's eventsday records, any sport) that a UK or Norwegian channel shows
+    live: on air at kick-off and naming both teams, the same rule as a fixture's channels. Soonest first, each game once."""
+    lo = datetime.combine(day, time.min, tz).astimezone(UTC) - STARTS_FROM
+    hi = datetime.combine(day + timedelta(days=1), time.min, tz).astimezone(UTC)
+    todays = sorted((p for p in programmes if lo <= p.start < hi), key=lambda p: p.start)
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for e in events or []:
+        eid = str(e.get("idEvent") or "")
+        ts = e.get("strTimestamp")
+        if not eid or eid in seen or not ts:
+            continue
+        try:
+            start = datetime.fromisoformat(str(ts))
+        except ValueError:
+            continue
+        start = (start if start.tzinfo else start.replace(tzinfo=UTC)).astimezone(UTC)
+        if start.astimezone(tz).date() != day:
+            continue
+        seen.add(eid)
+        home, away = str(e.get("strHomeTeam") or ""), str(e.get("strAwayTeam") or "")
+        if not home or not away:
+            continue
+        h, a = pair_needles(home, away, e.get("strSport"))
+        window = [p for p in todays if start - STARTS_FROM <= p.start <= start + STARTS_BY]
+        found = guide_listings(start, h, a, window)
+        if found:
+            out.append({"event_id": eid, "date": start.isoformat(), "sport": e.get("strSport"), "league": e.get("strLeague"),
+                        "league_logo": e.get("strLeagueBadge"), "home": home, "away": away, "home_id": e.get("idHomeTeam"),
+                        "away_id": e.get("idAwayTeam"), "home_badge": e.get("strHomeTeamBadge"), "away_badge": e.get("strAwayTeamBadge"),
+                        "tv": found})
+    return sorted(out, key=lambda g: g["date"])

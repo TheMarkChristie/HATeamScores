@@ -37,7 +37,7 @@ from .const import (
 )
 from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
 from .scorers import SCORER_SPORTS, espn_slug, find_espn_event, parse_espn_summary, scoreboard_dates, timeline_goals
-from .tv import guide_listings, merge, sportsdb_listings, team_needles, with_defaults
+from .tv import guide_listings, merge, pair_needles, sportsdb_listings, with_defaults
 
 _LOGGER = logging.getLogger(__name__)
 RETRY_MINUTES = 3
@@ -142,8 +142,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
             if e.start is None or not (now - timedelta(hours=4) <= e.start <= horizon):
                 continue
             before = mem.tv.get(e.id) or []
-            home = team_needles(e.home_name, e.sport, self._extra_names(e.home_id))
-            away = team_needles(e.away_name, e.sport, self._extra_names(e.away_id))
+            home, away = pair_needles(e.home_name, e.away_name, e.sport, self._extra_names(e.home_id), self._extra_names(e.away_id))
             found = guide_listings(e.start, home, away, programmes) or [i for i in before if i.get("source") == "guide"]
             sportsdb = [i for i in before if i.get("source") == "thesportsdb"]
             asked = mem.tv_checked.get(e.id)

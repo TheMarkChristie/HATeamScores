@@ -19,6 +19,7 @@ from .card_resource import async_remove_card_resource, async_schedule_card_resou
 from .const import CARD_FILE, DOMAIN, STORAGE_VERSION, URL_BASE
 from .coordinator import SportsDBCoordinator
 from .guide import get_guide
+from .today import async_register as async_register_today
 
 PLATFORMS = [Platform.SENSOR]
 _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
@@ -53,6 +54,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass.data[_STATIC_REGISTERED] = True
     url = await _card_url(hass)
     frontend.add_extra_js_url(hass, url)
+    async_register_today(hass)             # the card's On TV today button asks over the websocket
     async_schedule_card_resource(hass, url)
     return True
 

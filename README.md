@@ -87,6 +87,7 @@ results_days: 1
 | `layout` | `columns` | `columns` puts the days side by side when the card is wide enough (a tablet or desktop); `list` keeps one long column. A phone always shows one column |
 | `day_width` | 300 | The narrowest a day column may be, in pixels |
 | `show_goals` | true | Tap a game with goals to see who scored |
+| `show_tv_button` | true | An **On TV today** button in the card's header |
 
 A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
 your teams play (Liverpool v Manchester City) appears once.
@@ -119,6 +120,16 @@ Not every game is listed anywhere. Services that sell events rather than run cha
 extra streams) have no guide, and TheSportsDB's broadcaster data is crowd-sourced and often empty for Scottish and
 Norwegian domestic games. The sensor carries the channels too: `tv` on each fixture, and `tv_network` for the game the
 sensor shows.
+
+### On TV today
+
+The **On TV today** button in the card's header swaps the days for every game on UK or Norwegian TV today, in any
+league, in time order: the teams with their badges, the competition, and the channels behind their flags (on a wide
+screen the list flows into columns). Press it again (it then reads **Back to scores**) to return. The list is worked
+out by the integration when the button is pressed, and again every ten minutes while it is open: TheSportsDB's games of
+the day (football, ice hockey, American football, basketball, rugby and handball) are matched to the UK and Norwegian
+guides with the same rule as a fixture's channels, so only live broadcasts count, not replays or highlights. The full
+list needs a premium TheSportsDB key; the free key returns only a few games a day.
 
 ### Who scored
 

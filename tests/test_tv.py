@@ -8,7 +8,7 @@ channel ids, names, fields and listing wording, so the rules are tested on what 
 import gzip
 import json
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from _load import model, tv
 
@@ -184,6 +184,42 @@ class LeagueDefaults(unittest.TestCase):
     def test_other_leagues_are_left_alone(self):
         self.assertEqual(tv.with_defaults([], "4328", "English Premier League", self.DEFAULTS), [])
         self.assertEqual(tv.with_defaults([], "4380", "Norwegian 1. Divisjon", self.DEFAULTS), [])
+
+
+class TodayOnTv(unittest.TestCase):
+    PROGS = None
+
+    def setUp(self):
+        mk = lambda start, ch, cc, head: tv.Programme(T(start), T(start) + timedelta(hours=2), ch, cc, tv.fold(head))  # noqa: E731
+        self.progs = [
+            mk("2026-10-18T12:00:00", "Sky Sports Main Event", "UK", "Live: Leeds United v Manchester United"),
+            mk("2026-10-18T12:55:00", "V sport Premier League", "NO", "Premier League: Leeds - Manchester United"),
+            mk("2026-10-18T21:00:00", "TNT Sports 1", "UK", "Live NWSL: Bay FC v Portland Thorns"),
+            mk("2026-10-18T11:00:00", "TNT Sports 4", "UK", "Live WSL: Chelsea Women v Tottenham Women"),
+            mk("2026-10-18T10:00:00", "V sport 3", "NO", "Bundesliga 2: Union Berlin - Hertha Berlin"),
+        ]
+
+    def ev(self, eid, ts, home, away, sport="Soccer"):
+        return {"idEvent": eid, "strTimestamp": ts, "strHomeTeam": home, "strAwayTeam": away, "strSport": sport, "strLeague": "L"}
+
+    def test_the_days_games_on_tv_by_time_without_the_traps(self):
+        from zoneinfo import ZoneInfo
+        events = [
+            self.ev("1", "2026-10-18T13:00:00", "Leeds United", "Manchester United"),
+            self.ev("2", "2026-10-18T21:00:00", "Chattanooga FC", "New York City FC II"),      # FC is not a name
+            self.ev("3", "2026-10-18T11:00:00", "BK Häcken Women", "Hammarby Women"),          # Women is not a name
+            self.ev("4", "2026-10-18T10:00:00", "Makkabi Berlin", "Füchse Berlin"),             # Berlin names neither
+            self.ev("5", "2026-10-18T11:00:00", "Chelsea Women", "Tottenham Women"),
+            self.ev("1", "2026-10-18T13:00:00", "Leeds United", "Manchester United"),           # listed twice: once
+            self.ev("6", "2026-10-19T13:00:00", "Leeds United", "Manchester United"),           # another day
+        ]
+        games = tv.today_on_tv(events, self.progs, date(2026, 10, 18), ZoneInfo("Europe/Oslo"))
+        self.assertEqual([(g["event_id"], [i["channel"] for i in g["tv"]]) for g in games],
+                         [("5", ["TNT Sports 4"]), ("1", ["Sky Sports Main Event", "V sport Premier League"])])
+
+    def test_irish_channels_are_not_uk(self):
+        self.assertFalse(tv.guide_channel_wanted("Virgin.Media.Two.uk"))
+        self.assertFalse(tv.guide_channel_wanted("RTE2.uk"))
 
 
 if __name__ == "__main__":

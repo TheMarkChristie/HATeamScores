@@ -15,6 +15,7 @@
  * layout: columns             columns: the days side by side when the card is wide enough; list: one long column
  * day_width: 300              the narrowest a day column may be, in pixels
  * show_goals: true             tap a game with goals to see who scored (minute, scorer, assist)
+ * show_tv_button: true         an On TV today button: every game on UK or Norwegian TV today, by time
  * tv_countries: [UK, NO]       which countries' channels to show
  *
  * The integration serves this file and registers it as a dashboard resource; nothing to install.
@@ -86,6 +87,20 @@
     .goal .ast { display: block; font-size: 0.9em; color: var(--secondary-text-color); }
     .goal .note { color: var(--secondary-text-color); }
     .detail .gap { font-size: 0.78em; color: var(--secondary-text-color); padding-top: 3px; }
+    .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 2px 16px; min-height: 36px; }
+    .bar .head { padding: 0; flex: 1 1 auto; min-width: 0; }
+    .tvbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.85em; cursor: pointer;
+             padding: 6px 12px; border-radius: 16px; border: 1px solid var(--divider-color, rgba(127,127,127,0.35));
+             background: transparent; color: var(--primary-text-color); white-space: nowrap; }
+    .tvbtn svg { width: 16px; height: 16px; }
+    .tvbtn[aria-pressed="true"] { background: var(--primary-color); border-color: transparent; color: var(--text-primary-color, #fff); }
+    .tvbtn:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+    .tvhead { padding: 10px 16px 2px; font-size: 0.78em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-text-color); }
+    .tvlist { padding: 2px 0; }
+    @container (min-width: 620px) {
+      .tvlist { columns: auto 340px; column-gap: 14px; padding: 2px 10px; }
+      .tvlist .row { break-inside: avoid; }
+    }
     .empty { padding: 12px 16px; color: var(--secondary-text-color); }
   `;
 
@@ -119,7 +134,12 @@
         const again = [...this.querySelectorAll(".row.click")].find((r) => r.dataset.ev === key);
         if (again) again.focus({ preventScroll: true });
       };
+      this._mode = "scores";
+      this._tv = null;
+      this._tvLoading = false;
+      this._tvTimer = null;
       this.addEventListener("click", (e) => {
+        if (e.target.closest && e.target.closest(".tvbtn")) { this._toggleTv(); return; }
         const row = e.target.closest && e.target.closest(".row.click");
         if (row) toggle(row);
       });
@@ -130,10 +150,61 @@
       });
     }
 
+    disconnectedCallback() {
+      if (this._tvTimer) { clearInterval(this._tvTimer); this._tvTimer = null; }
+    }
+
+    /* the On TV today view: opened and closed by the button, read again every ten minutes while open */
+    _toggleTv() {
+      if (this._mode === "tv") {
+        this._mode = "scores";
+        if (this._tvTimer) { clearInterval(this._tvTimer); this._tvTimer = null; }
+      } else {
+        this._mode = "tv";
+        this._fetchTv();
+        this._tvTimer = setInterval(() => this._fetchTv(), 600000);
+      }
+      this._sig = null;
+      this._render();
+      const btn = this.querySelector(".tvbtn");
+      if (btn) btn.focus({ preventScroll: true });
+    }
+
+    async _fetchTv() {
+      if (!this._hass) return;
+      this._tvLoading = true;
+      this._sig = null;
+      this._render();
+      try {
+        this._tv = await this._hass.callWS({ type: "sportsdb_tracker/tv_today" });
+      } catch (err) {
+        this._tv = { status: "error", games: [], message: (err && err.message) || String(err) };
+      }
+      this._tvLoading = false;
+      this._sig = null;
+      this._render();
+    }
+
+    _tvView(mine, fmt) {
+      const tv = this._tv;
+      let html = `<div class="tvhead">On TV today</div>`;
+      if (!tv) return html + `<div class="empty">Loading the TV guides...</div>`;
+      if (tv.status === "guides_loading") return html + `<div class="empty">The TV guides are still downloading. Try again in a minute.</div>`;
+      if (tv.status === "error") return html + `<div class="empty">Today's TV could not be read (${esc(tv.message || "")}).</div>`;
+      const wanted = this._config.tv_countries || ["UK", "NO"];
+      const games = (tv.games || []).filter((g) => (g.tv || []).some((i) => wanted.includes(i.country)));
+      if (!games.length) html += `<div class="empty">Nothing on UK or Norwegian TV today that the guides list.</div>`;
+      html += `<div class="tvlist">`;
+      games.forEach((g, i) => { html += this._row(Object.assign({}, g, { finished: false, live: false, goals: [] }), Date.parse(g.date), mine, fmt, i === 0); });
+      html += `</div>`;
+      if (tv.premium === false) html += `<div class="empty" style="font-size:0.8em">A premium TheSportsDB key lists every game; the free key lists a few.</div>`;
+      return html;
+    }
+
     setConfig(config) {
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
                                      show_venue: true, show_league: true, show_tv: true, tv_countries: ["UK", "NO"],
-                                     layout: "columns", day_width: 300, show_goals: true }, config || {});
+                                     layout: "columns", day_width: 300, show_goals: true, show_tv_button: true }, config || {});
       this._sig = null;
       if (this._hass) this._render();
     }
@@ -221,7 +292,8 @@
 
     _render() {
       if (!this._hass || !this._config) return;
-      const sig = this._entities().map((id) => id + "@" + this._hass.states[id].last_updated).join("|") + "#" + Math.floor(Date.now() / 60000);
+      const sig = this._entities().map((id) => id + "@" + this._hass.states[id].last_updated).join("|") + "#" + Math.floor(Date.now() / 60000) +
+        "#" + this._mode + (this._tvLoading ? "L" : "");
       if (sig === this._sig) return;
       this._sig = sig;
 
@@ -255,7 +327,15 @@
       }
 
       let html = `<style>${CSS}</style><ha-card>`;
-      if (this._config.title) html += `<div class="head">${esc(this._config.title)}</div>`;
+      const button = this._config.show_tv_button
+        ? `<button class="tvbtn" aria-pressed="${this._mode === "tv"}" title="Every game on UK or Norwegian TV today">` +
+          `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>` +
+          `${this._mode === "tv" ? "Back to scores" : "On TV today"}</button>` : "";
+      if (this._config.title || button) html += `<div class="bar">${this._config.title ? `<div class="head">${esc(this._config.title)}</div>` : ""}${button}</div>`;
+      if (this._mode === "tv") {
+        this.innerHTML = html + this._tvView(mine, fmt) + `</ha-card>`;
+        return;
+      }
       if (!rows.length) html += `<div class="empty">No games in the next ${this._config.days_ahead} days.</div>`;
       const columns = this._config.layout !== "list";
       const width = Math.max(220, Number(this._config.day_width) || 300);
