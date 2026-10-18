@@ -1,10 +1,12 @@
-"""TV channels for a game: reading the guides, finding the teams in them, and TheSportsDB's broadcasters.
+"""TV channels for a game: reading the UK and Norwegian guides, finding the teams in them, and TheSportsDB's
+broadcasters.
 
 Run:  python -m unittest discover -s tests -v
-The guide below is cut down from epgshare01's UK and Norway files of 18 Oct 2026, with the same channel ids, names and
-listing wording, so the rules are tested on what the real guides say.
+The guides below are cut down from epgshare01's UK file and Allente's Norwegian guide of 18 Oct 2026, with the same
+channel ids, names, fields and listing wording, so the rules are tested on what the real guides say.
 """
 import gzip
+import json
 import unittest
 from datetime import datetime, timezone
 
@@ -43,23 +45,35 @@ GUIDE_UK = """<?xml version="1.0" encoding="UTF-8"?>
     <title>Sportscene: Premiership Highlights</title><desc>Rangers v St Johnstone and the rest.</desc></programme>
 </tv>"""
 
-GUIDE_NO = """<?xml version="1.0" encoding="UTF-8"?>
-<tv>
-  <channel id="V.sport.Premier.League.Norway.(NO,NO).no"><display-name>V sport Premier League Norway (NO,NO)</display-name></channel>
-  <channel id="TV3.Sport.Denmark.(DK,DA).no"><display-name>TV3 Sport Denmark (DK,DA)</display-name></channel>
-  <channel id="TV.2.Sport.1.Norway.(NO,NO).no"><display-name>TV 2 Sport 1 Norway (NO,NO)</display-name></channel>
-  <programme start="20261018145500 +0200" stop="20261018170000 +0200" channel="V.sport.Premier.League.Norway.(NO,NO).no">
-    <title>Premier League</title><sub-title>Leeds - Manchester United</sub-title></programme>
-  <programme start="20261018145500 +0200" stop="20261018170000 +0200" channel="TV3.Sport.Denmark.(DK,DA).no">
-    <title>Premier League</title><sub-title>Leeds - Manchester United</sub-title></programme>
-  <programme start="20261022185500 +0200" stop="20261022213000 +0200" channel="TV.2.Sport.1.Norway.(NO,NO).no">
-    <title>Ishockey: Fjordkraft-ligaen</title><sub-title>Vålerenga - Frisk Asker</sub-title></programme>
-</tv>"""
+
+def allente_day(channels):
+    return json.dumps({"start": "2026-10-22T00:00:00+00:00", "end": "2026-10-23T00:00:00+00:00", "totalChannels": len(channels),
+                       "channels": [{"id": cid, "name": name, "programs": [
+                           {"id": f"{cid}-{i}", "title": t, "shortDescription": d, "eventStart": s, "eventEnd": e, "genres": ["Sport"]}
+                           for i, (t, d, s, e) in enumerate(progs)]} for cid, name, progs in channels]}).encode()
+
+
+ALLENTE = [
+    allente_day([
+        ("10099", "TV 2 Sport 1 HD", [("EHL: Vålerenga - Frisk Asker", "Fra Jordal Amfi og kampen mellom Vålerenga og Frisk Asker.",
+                                      "2026-10-22T16:55:00+00:00", "2026-10-22T19:30:00+00:00"),
+                                     ("UEFA Champions League: Aston Villa - Viking", "", "2026-10-21T22:00:00+00:00", "2026-10-22T00:00:00+00:00")]),
+        ("30003", "TV 2 HD (D)", [("EHL: Vålerenga - Frisk Asker", "", "2026-10-22T16:55:00+00:00", "2026-10-22T19:30:00+00:00")]),
+        ("50047", "V sport 1 HD (N)", [("NHL: Seattle Kraken - Detroit Red Wings", "Ishockey, NHL.", "2026-10-21T01:30:00+00:00",
+                                       "2026-10-21T04:30:00+00:00")]),
+        ("50105", "V sport ultra HD", [("NHL: Seattle Kraken - Detroit Red Wings", "", "2026-10-21T01:30:00+00:00", "2026-10-21T04:30:00+00:00")]),
+        ("10106", "V sport Premier League HD", [("Premier League: Leeds - Manchester United", "Fra Elland Road.",
+                                                "2026-10-18T12:55:00+00:00", "2026-10-18T15:00:00+00:00")]),
+        ("10055", "NRK1 Midtnytt", [("Fotball: Norge - Wales", "Nations League.", "2026-11-14T16:45:00+00:00", "2026-11-14T19:00:00+00:00")]),
+        ("10001", "NRK1 HD", [("Fotball: Norge - Wales", "Nations League.", "2026-11-14T16:45:00+00:00", "2026-11-14T19:00:00+00:00")]),
+        ("10042", "NRK1 Lydtekst", [("Fotball: Norge - Wales", "", "2026-11-14T16:45:00+00:00", "2026-11-14T19:00:00+00:00")]),
+    ]),
+    b"{not json",
+]
 
 
 def guides():
-    return (tv.parse_guide(gzip.compress(GUIDE_UK.encode()), "UK", NOW)
-            + tv.parse_guide(GUIDE_NO.encode(), "NO", NOW))
+    return tv.parse_xmltv(gzip.compress(GUIDE_UK.encode()), "UK", NOW) + tv.parse_allente(ALLENTE, NOW)
 
 
 def find(when, home, away, sport="Soccer", progs=None):
@@ -68,38 +82,53 @@ def find(when, home, away, sport="Soccer", progs=None):
 
 
 class Channels(unittest.TestCase):
-    def test_names_people_use(self):
+    def test_uk_names_people_use(self):
         self.assertEqual(tv.channel_name("SkySpMainEvHD"), "Sky Sports Main Event")
         self.assertEqual(tv.channel_name("SkySp Fball HD"), "Sky Sports Football")
         self.assertEqual(tv.channel_name("TNT Sports 1 HD"), "TNT Sports 1")
-        self.assertEqual(tv.channel_name("V sport Premier League 1 Norway (NO,NO)"), "V sport Premier League 1")
-        self.assertEqual(tv.channel_name("Viasport+ Norway (NO,NO)"), "V sport+")
         self.assertEqual(tv.channel_name("BBC One ScotHD"), "BBC One Scotland")
 
-    def test_only_this_countrys_television(self):
-        self.assertFalse(tv.guide_channel_wanted("BBC.R5L.uk", "UK"), "radio")
-        self.assertFalse(tv.guide_channel_wanted("STV.Central.+1.uk", "UK"), "an hour later")
-        self.assertFalse(tv.guide_channel_wanted("TNT.Sports.Ultimate.HD.uk", "UK"), "a 4K copy of another channel")
-        self.assertFalse(tv.guide_channel_wanted("TV3.Sport.Denmark.(DK,DA).no", "NO"), "Danish, in the Norwegian file")
-        self.assertTrue(tv.guide_channel_wanted("TV.2.Sport.1.Norway.(NO,NO).no", "NO"))
+    def test_uk_television_only(self):
+        self.assertFalse(tv.guide_channel_wanted("BBC.R5L.uk"), "radio")
+        self.assertFalse(tv.guide_channel_wanted("STV.Central.+1.uk"), "an hour later")
+        self.assertFalse(tv.guide_channel_wanted("TNT.Sports.Ultimate.HD.uk"), "a 4K copy of another channel")
+        self.assertTrue(tv.guide_channel_wanted("Premier.Sports.1.HD.uk"))
+
+    def test_norwegian_names_and_the_channels_left_out(self):
+        self.assertEqual(tv.allente_channel_name("V sport 1 HD (N)"), "V sport 1")
+        self.assertEqual(tv.allente_channel_name("V sport + HD"), "V sport+")
+        self.assertEqual(tv.allente_channel_name("TV 2 Sport Premium 2 HD"), "TV 2 Sport Premium 2")
+        self.assertEqual(tv.allente_channel_name("NRK1 Midtnytt"), "NRK1")
+        self.assertEqual(tv.allente_channel_name("NRK Super / NRK3 HD"), "NRK3")
+        self.assertEqual(tv.allente_channel_name("Eurosport Norge HD"), "Eurosport Norge")
+        self.assertIsNone(tv.allente_channel_name("TV 2 HD (D)"), "Danish")
+        self.assertIsNone(tv.allente_channel_name("Yle TV2 HD"), "Finnish")
+        self.assertIsNone(tv.allente_channel_name("NRK1 Lydtekst"), "a subtitled copy")
+        self.assertIsNone(tv.allente_channel_name("V sport ultra HD"), "a 4K copy")
 
 
 class Matching(unittest.TestCase):
-    def test_the_live_broadcast_not_the_goals_show_or_radio(self):
+    def test_the_live_broadcast_not_the_goals_show_radio_or_4k(self):
         self.assertEqual(find("2026-10-20T19:00:00", "Manchester City", "AEK Athens"), [("TNT Sports 1", "UK")])
 
     def test_north_american_nicknames_and_the_replay_left_out(self):
         self.assertEqual(find("2026-10-19T00:20:00", "Green Bay Packers", "Dallas Cowboys", "American Football"),
                          [("Sky Sports Main Event", "UK"), ("Sky Sports Action", "UK")])
 
-    def test_norwegian_listing_short_names_and_local_times(self):
-        self.assertEqual(find("2026-10-18T13:00:00", "Leeds United", "Manchester United"), [("V sport Premier League", "NO")])
+    def test_norway_tv2_sport_without_the_danish_copy(self):
         self.assertEqual(find("2026-10-22T17:00:00", "Vålerenga", "Frisk Asker", "Ice Hockey"), [("TV 2 Sport 1", "NO")])
+
+    def test_norway_v_sport_both_ways_round(self):
+        self.assertEqual(find("2026-10-21T01:40:00", "Seattle Kraken", "Detroit Red Wings", "Ice Hockey"), [("V sport 1", "NO")])
+        self.assertEqual(find("2026-10-18T13:00:00", "Leeds United", "Manchester United"), [("V sport Premier League", "NO")])
+
+    def test_nrk1_once_whatever_the_region_and_norway_is_norge(self):
+        self.assertEqual(find("2026-11-14T17:00:00", "Norway", "Wales"), [("NRK1", "NO")])
 
     def test_highlights_the_night_before_are_not_the_game(self):
         self.assertEqual(find("2026-10-24T14:00:00", "Rangers", "St Johnstone"), [])
 
-    def test_a_long_word_by_its_start(self):
+    def test_a_long_word_by_its_start_and_capitals(self):
         self.assertTrue(tv.names_team(tv.fold("Manchester City - AEK Athen"), tv.team_needles("AEK Athens")))
         self.assertFalse(tv.names_team(tv.fold("Arsenal - Chelsea"), tv.team_needles("Manchester City")))
 
@@ -126,11 +155,13 @@ class OnTheSensor(unittest.TestCase):
         team = model.Team(id="133613", name="Manchester City", sport="Soccer")
         game = model.Event(id="2594550", name="Manchester City vs AEK Athens", sport="Soccer", start=T("2026-10-20T19:00:00"),
                            home_id="133613", home_name="Manchester City", away_id="1", away_name="AEK Athens")
-        mem = model.Memory(tracked=game, upcoming=[game], tv={"2594550": [{"channel": "TNT Sports 1", "country": "UK", "source": "guide"}]})
+        listing = {"channel": "TNT Sports 1", "country": "UK", "source": "guide"}
+        mem = model.Memory(tracked=game, upcoming=[game], tv={"2594550": [listing]}, tv_checked={"2594550": NOW.isoformat()})
         mem = model.Memory.from_dict(mem.to_dict())
+        self.assertEqual(mem.tv_checked, {"2594550": NOW.isoformat()})
         state, attrs = model.present(team, mem, NOW, 24, 6)
         self.assertEqual(state, "PRE")
-        self.assertEqual(attrs["fixtures"][0]["tv"], [{"channel": "TNT Sports 1", "country": "UK", "source": "guide"}])
+        self.assertEqual(attrs["fixtures"][0]["tv"], [listing])
         self.assertEqual(attrs["tv_network"], "TNT Sports 1")
 
 

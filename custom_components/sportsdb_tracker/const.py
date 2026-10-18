@@ -23,11 +23,10 @@ DEFAULT_PRE_HOURS = 6
 
 STORAGE_VERSION = 1
 
-# TV channels for each fixture (tv.py): the free UK and Norwegian guides from epgshare01, and TheSportsDB's broadcasters
-GUIDE_URLS = {
-    "UK": "https://epgshare01.online/epgshare01/epg_ripper_UK1.xml.gz",
-    "NO": "https://epgshare01.online/epgshare01/epg_ripper_NO1.xml.gz",
-}
+# TV channels for each fixture (tv.py): the UK guide from epgshare01, Norway's from Allente, and TheSportsDB's broadcasters
+GUIDE_UK_URL = "https://epgshare01.online/epgshare01/epg_ripper_UK1.xml.gz"
+ALLENTE_URL = "https://www.allente.no/api/epg/refetch-epg-data?Start={day}"
+ALLENTE_DAYS = 5                         # Allente lists about five days ahead
 GUIDE_REFRESH_HOURS = 6                  # the guides are rebuilt daily; a few reads a day catch the new days early
 GUIDE_RETRY_MINUTES = 30                 # after a failed download
 TV_DAYS_AHEAD = 14                       # fixtures this close get their channels looked up

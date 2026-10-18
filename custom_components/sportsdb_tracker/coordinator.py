@@ -25,8 +25,8 @@ from .const import (
     DEFAULT_PRE_HOURS,
     DEFAULT_RESULTS_HOURS,
     DOMAIN,
-    SPORTSDB_TV_HOURS,
     STORAGE_VERSION,
+    SPORTSDB_TV_HOURS,
     TV_DAYS_AHEAD,
     UPDATE_MINUTES_IDLE,
     UPDATE_MINUTES_LIVE,
@@ -127,12 +127,14 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
 
     async def _update_tv(self, mem: Memory, now: datetime, key: str) -> None:
         """The UK and Norwegian channels of every fixture in the next fortnight: the TV guides each update, TheSportsDB's
-        broadcaster list twice a day per game. A guide that has rotated past a game keeps what it found earlier."""
+        broadcaster list twice a day per game (not on the refresh at start-up, so Home Assistant is not held up). A guide
+        that has rotated past a game, or failed to download, keeps what was found earlier."""
         horizon = now + timedelta(days=TV_DAYS_AHEAD)
-        games = [e for e in mem.upcoming if e.start is not None and now - timedelta(hours=4) <= e.start <= horizon]
         programmes = get_guide(self.hass).programmes()      # never waits: the guides download in the background
-        first = self.data is None                              # the refresh at start-up: no extra calls while Home Assistant boots
-        for e in games:
+        first = self.data is None
+        for e in mem.upcoming:
+            if e.start is None or not (now - timedelta(hours=4) <= e.start <= horizon):
+                continue
             before = mem.tv.get(e.id) or []
             home = team_needles(e.home_name, e.sport, self._extra_names(e.home_id))
             away = team_needles(e.away_name, e.sport, self._extra_names(e.away_id))

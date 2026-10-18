@@ -20,6 +20,7 @@ BROWSERS = [r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Progr
 
 def main():
     states_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "fixtures_states.json")
+    width = int(sys.argv[2]) if len(sys.argv) > 2 else 384           # 384: a phone; 1180: a wall tablet
     states = {s["entity_id"]: s for s in json.load(open(states_path, encoding="utf-8"))}
     page = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <style>body{{margin:0;background:#111;color:#eee;font-family:Roboto,Segoe UI,sans-serif;
@@ -34,7 +35,7 @@ const states={json.dumps(states)};
 const hass={{states, locale:{{language:"en-GB", time_format:"24", time_zone:"server"}}, config:{{time_zone:"Europe/Oslo"}}}};
 const card=document.createElement("team-scores-card");
 card.setConfig({{title:"Scores"}});
-const wrap=document.createElement("div"); wrap.style.width="384px"; wrap.style.overflow="hidden"; wrap.style.outline="1px solid #444"; document.body.appendChild(wrap); wrap.appendChild(card);
+const wrap=document.createElement("div"); wrap.style.width="{width}px"; wrap.style.overflow="hidden"; wrap.style.outline="1px solid #444"; document.body.appendChild(wrap); wrap.appendChild(card);
 card.hass=hass;
 </script></body></html>"""
     html = os.path.join(HERE, "card_render.html")
@@ -46,7 +47,7 @@ card.hass=hass;
             continue
         profile = tempfile.mkdtemp(prefix="card-")
         subprocess.run([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}",
-                        "--window-size=400,1700", f"--screenshot={out}", url], capture_output=True, timeout=90)
+                        f"--window-size={width + 16},1700", f"--screenshot={out}", url], capture_output=True, timeout=90)
         shutil.rmtree(profile, ignore_errors=True)
         if os.path.exists(out):
             print("rendered with", os.path.basename(browser), "->", out)

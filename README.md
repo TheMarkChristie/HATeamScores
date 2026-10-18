@@ -84,6 +84,8 @@ results_days: 1
 | `show_league` | true | The competition under each row |
 | `show_tv` | true | The UK and Norwegian TV channels under each coming game |
 | `tv_countries` | `[UK, NO]` | Which countries' channels to show, in this order |
+| `layout` | `columns` | `columns` puts the days side by side when the card is wide enough (a tablet or desktop); `list` keeps one long column. A phone always shows one column |
+| `day_width` | 300 | The narrowest a day column may be, in pixels |
 
 A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
 your teams play (Liverpool v Manchester City) appears once.
@@ -96,11 +98,13 @@ With a premium key the list fills with everything TheSportsDB has scheduled.
 Under each coming game the card shows its channels, UK first then Norway, for example `UK TNT Sports 1` and
 `NO V sport Premier League 1`. Two sources are merged:
 
-- **The TV guides.** The integration reads the free UK and Norwegian guides published by
-  [epgshare01](https://epgshare01.online/epgshare01/) every six hours, one download for all teams. A channel is listed
-  when its programme at kick-off names both teams in its title, for example `Live NFL Cowboys @ Packers` or
-  `Manchester City v AEK Athens`. Goals shows, highlights, studios, radio, +1 and 4K copies are left out. The guides
-  reach a few days ahead (about six for the UK, four for Norway), so channels appear as the game gets close.
+- **The TV guides.** Every six hours, one download for all teams: the UK guide published by
+  [epgshare01](https://epgshare01.online/epgshare01/) (Sky Sports, TNT Sports, Premier Sports, BBC One Scotland, STV
+  and the rest), and Allente's public TV guide for Norway (TV 2 Sport 1, 2 and Premium, Viaplay's V sport channels
+  including V sport live 1-5, NRK1, NRK2, NRK3, Eurosport Norge). A channel is listed when its programme at kick-off
+  names both teams in its title, for example `Live NFL Cowboys @ Packers` or `EHL: Vålerenga - Frisk Asker`. Goals
+  shows, highlights, studios, radio, +1, subtitled and 4K copies, and the Danish and Swedish channels in Allente's
+  list are left out. The guides reach about five or six days ahead, so channels appear as the game gets close.
 - **TheSportsDB.** Its broadcaster list for the game, UK and Norway only, read twice a day per game. This adds
   streaming rights no guide carries, such as Amazon Prime Video. On the free key TheSportsDB returns two broadcasters
   from any country, so this part is thin; with a premium key it returns them all.

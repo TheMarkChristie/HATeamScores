@@ -12,6 +12,8 @@
  * show_venue: true
  * show_league: true
  * show_tv: true               the UK and Norwegian channels under each coming game
+ * layout: columns             columns: the days side by side when the card is wide enough; list: one long column
+ * day_width: 300              the narrowest a day column may be, in pixels
  * tv_countries: [UK, NO]       which countries' channels to show
  *
  * The integration serves this file and registers it as a dashboard resource; nothing to install.
@@ -23,7 +25,16 @@
 
   const CSS = `
     :host { display: block; }
-    ha-card { padding: 4px 0 10px; }
+    ha-card { padding: 4px 0 10px; container-type: inline-size; }
+    .days.columns { display: block; }
+    /* wide enough for two days side by side: each day becomes its own column */
+    @container (min-width: 620px) {
+      .days.columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tsc-day-width, 300px), 1fr));
+                      gap: 10px; padding: 6px 10px 0; align-items: start; }
+      .days.columns .dayblock { min-width: 0; border-radius: 12px; padding-bottom: 4px;
+                                background: var(--secondary-background-color, rgba(127,127,127,0.08)); }
+      .days.columns .day { padding-top: 10px; }
+    }
     .head { padding: 12px 16px 4px; font-size: 1.15em; font-weight: 500; color: var(--primary-text-color); }
     .day { padding: 12px 16px 4px; font-size: 0.78em; letter-spacing: 0.06em; text-transform: uppercase;
            color: var(--secondary-text-color); }
@@ -70,7 +81,8 @@
 
     setConfig(config) {
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
-                                     show_venue: true, show_league: true, show_tv: true, tv_countries: ["UK", "NO"] }, config || {});
+                                     show_venue: true, show_league: true, show_tv: true, tv_countries: ["UK", "NO"],
+                                     layout: "columns", day_width: 300 }, config || {});
       this._sig = null;
       if (this._hass) this._render();
     }
@@ -190,12 +202,16 @@
       let html = `<style>${CSS}</style><ha-card>`;
       if (this._config.title) html += `<div class="head">${esc(this._config.title)}</div>`;
       if (!rows.length) html += `<div class="empty">No games in the next ${this._config.days_ahead} days.</div>`;
+      const columns = this._config.layout !== "list";
+      const width = Math.max(220, Number(this._config.day_width) || 300);
+      html += `<div class="days${columns ? " columns" : ""}" style="--tsc-day-width:${width}px">`;
       for (const [key, list] of byDay) {
         const label = key === todayKey ? "Today" : key === yesterdayKey ? "Yesterday" : key === tomorrowKey ? "Tomorrow" : fmt.head.format(list[0].t);
-        html += `<div class="day">${esc(label)}</div>`;
+        html += `<section class="dayblock"><div class="day">${esc(label)}</div>`;
         list.forEach((r, i) => { html += this._row(r.g, r.t, mine, fmt, i === 0); });
+        html += `</section>`;
       }
-      html += `</ha-card>`;
+      html += `</div></ha-card>`;
       this.innerHTML = html;
     }
 
