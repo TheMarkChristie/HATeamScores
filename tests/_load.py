@@ -17,4 +17,4 @@ if "custom_components.sportsdb_tracker" not in sys.modules:
     sys.modules["custom_components"] = top
     sys.modules["custom_components.sportsdb_tracker"] = pkg
 
-from custom_components.sportsdb_tracker import const, model  # noqa: E402,F401
+from custom_components.sportsdb_tracker import const, model, tv  # noqa: E402,F401

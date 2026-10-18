@@ -82,12 +82,33 @@ results_days: 1
 | `entities` | all teams | Or an explicit list of sensors |
 | `show_venue` | true | The venue under each row |
 | `show_league` | true | The competition under each row |
+| `show_tv` | true | The UK and Norwegian TV channels under each coming game |
+| `tv_countries` | `[UK, NO]` | Which countries' channels to show, in this order |
 
 A game in play shows `LIVE` in the time column; the score arrives with the result on the free key. A game both
 your teams play (Liverpool v Manchester City) appears once.
 
 On the free key TheSportsDB lists one coming fixture per team, so the two weeks ahead hold each team's next game.
 With a premium key the list fills with everything TheSportsDB has scheduled.
+
+### Which channel a game is on
+
+Under each coming game the card shows its channels, UK first then Norway, for example `UK TNT Sports 1` and
+`NO V sport Premier League 1`. Two sources are merged:
+
+- **The TV guides.** The integration reads the free UK and Norwegian guides published by
+  [epgshare01](https://epgshare01.online/epgshare01/) every six hours, one download for all teams. A channel is listed
+  when its programme at kick-off names both teams in its title, for example `Live NFL Cowboys @ Packers` or
+  `Manchester City v AEK Athens`. Goals shows, highlights, studios, radio, +1 and 4K copies are left out. The guides
+  reach a few days ahead (about six for the UK, four for Norway), so channels appear as the game gets close.
+- **TheSportsDB.** Its broadcaster list for the game, UK and Norway only, read twice a day per game. This adds
+  streaming rights no guide carries, such as Amazon Prime Video. On the free key TheSportsDB returns two broadcasters
+  from any country, so this part is thin; with a premium key it returns them all.
+
+Not every game is listed anywhere. Services that sell events rather than run channels (DAZN, VG+ Sport, TV 2 Play's
+extra streams) have no guide, and TheSportsDB's broadcaster data is crowd-sourced and often empty for Scottish and
+Norwegian domestic games. The sensor carries the channels too: `tv` on each fixture, and `tv_network` for the game the
+sensor shows.
 
 ### One sport per card
 

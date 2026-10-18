@@ -11,6 +11,8 @@
  * entities: [sensor.x, ...]      or an explicit list
  * show_venue: true
  * show_league: true
+ * show_tv: true               the UK and Norwegian channels under each coming game
+ * tv_countries: [UK, NO]       which countries' channels to show
  *
  * The integration serves this file and registers it as a dashboard resource; nothing to install.
  * Copyright (c) 2026 Mark Christie. MIT licence. Data provided by TheSportsDB.com.
@@ -26,7 +28,7 @@
     .day { padding: 12px 16px 4px; font-size: 0.78em; letter-spacing: 0.06em; text-transform: uppercase;
            color: var(--secondary-text-color); }
     .row { display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto; column-gap: 8px; row-gap: 3px;
-           grid-template-areas: "time home hs" "time away as" "time sub sub"; align-items: center;
+           grid-template-areas: "time home hs" "time away as" "time sub sub" "time tv tv"; align-items: center;
            padding: 8px 14px 8px 16px; border-top: 1px solid var(--divider-color, rgba(127,127,127,0.2));
            overflow: hidden; }
     .row.first { border-top: none; }
@@ -50,6 +52,10 @@
     .score.live { color: var(--error-color, #db4437); }
     .sub { grid-area: sub; min-width: 0; font-size: 0.78em; color: var(--secondary-text-color); overflow: hidden;
            text-overflow: ellipsis; white-space: nowrap; }
+    .tv { grid-area: tv; min-width: 0; font-size: 0.78em; color: var(--primary-text-color); line-height: 1.6; }
+    .tv .cc { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: 0.85em; font-weight: 600;
+              letter-spacing: 0.04em; color: var(--secondary-text-color); border: 1px solid var(--divider-color, rgba(127,127,127,0.35)); }
+    .tv .grp { display: inline; margin-right: 10px; }
     .empty { padding: 12px 16px; color: var(--secondary-text-color); }
   `;
 
@@ -64,7 +70,7 @@
 
     setConfig(config) {
       this._config = Object.assign({ title: "", days_ahead: 14, results_days: 1, prefixes: null, entities: null,
-                                     show_venue: true, show_league: true }, config || {});
+                                     show_venue: true, show_league: true, show_tv: true, tv_countries: ["UK", "NO"] }, config || {});
       this._sig = null;
       if (this._hass) this._render();
     }
@@ -123,6 +129,7 @@
         const better = (g.finished && !prev.finished) || (g.home_score != null && prev.home_score == null) || (g.live && !prev.live);
         const merged = better ? Object.assign({}, prev, g) : Object.assign({}, g, prev);
         for (const k of ["home_badge", "away_badge", "home_id", "away_id", "venue", "league"]) if (merged[k] == null) merged[k] = g[k] != null ? g[k] : prev[k];
+        if (!(merged.tv && merged.tv.length)) merged.tv = (g.tv && g.tv.length) ? g.tv : prev.tv;
         games.set(key, merged);
       };
       for (const id of this._entities()) {
@@ -210,13 +217,24 @@
       if (this._config.show_venue && g.venue) subParts.push(g.venue);
       if (this._config.show_league && g.league) subParts.push(g.league);
       const sub = subParts.length ? `<div class="sub">${esc(subParts.join(" · "))}</div>` : "";
+      let tv = "";
+      if (this._config.show_tv && !g.finished && Array.isArray(g.tv) && g.tv.length) {
+        const groups = [];
+        for (const cc of this._config.tv_countries || ["UK", "NO"]) {
+          const names = g.tv.filter((i) => i.country === cc).map((i) => i.channel);
+          if (!names.length) continue;
+          const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+          groups.push(`<span class="grp"><span class="cc">${esc(cc)}</span>${esc(shown)}</span>`);
+        }
+        if (groups.length) tv = `<div class="tv">${groups.join("")}</div>`;
+      }
       return `<div class="row${first ? " first" : ""}">` +
         `<div class="time ${timeCls}">${esc(time)}</div>` +
         side("home", g.home_id, g.home, g.home_badge, homeLost) +
         `<div class="score hs ${scoreCls}${homeLost ? " loser" : ""}">${hs}</div>` +
         side("away", g.away_id, g.away, g.away_badge, awayLost) +
         `<div class="score as ${scoreCls}${awayLost ? " loser" : ""}">${as}</div>` +
-        sub + `</div>`;
+        sub + tv + `</div>`;
     }
   }
 

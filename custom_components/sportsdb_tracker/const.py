@@ -23,6 +23,16 @@ DEFAULT_PRE_HOURS = 6
 
 STORAGE_VERSION = 1
 
+# TV channels for each fixture (tv.py): the free UK and Norwegian guides from epgshare01, and TheSportsDB's broadcasters
+GUIDE_URLS = {
+    "UK": "https://epgshare01.online/epgshare01/epg_ripper_UK1.xml.gz",
+    "NO": "https://epgshare01.online/epgshare01/epg_ripper_NO1.xml.gz",
+}
+GUIDE_REFRESH_HOURS = 6                  # the guides are rebuilt daily; a few reads a day catch the new days early
+GUIDE_RETRY_MINUTES = 30                 # after a failed download
+TV_DAYS_AHEAD = 14                       # fixtures this close get their channels looked up
+SPORTSDB_TV_HOURS = 12                   # TheSportsDB's broadcasters for a game are asked again after this long
+
 # the Team Scores card, served by the integration from its www folder and registered as a dashboard resource
 URL_BASE = "/sportsdb_tracker"
 CARD_FILE = "team-scores-card.js"

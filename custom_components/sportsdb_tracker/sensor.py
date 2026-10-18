@@ -26,7 +26,7 @@ class TeamSensor(CoordinatorEntity[SportsDBCoordinator], SensorEntity):
 
     _attr_attribution = ATTRIBUTION
     _attr_has_entity_name = False
-    _unrecorded_attributes = frozenset({"fixtures", "results", "last_update", "next_game", "last_game"})  # not history
+    _unrecorded_attributes = frozenset({"fixtures", "results", "last_update", "next_game", "last_game", "tv"})  # not history
 
     def __init__(self, coordinator: SportsDBCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)

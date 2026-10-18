@@ -126,6 +126,7 @@ class Team:
     colour1: str | None = None
     colour2: str | None = None
     gender: str | None = None
+    alternate: str | None = None       # strTeamAlternate: other names, comma separated (helps find the team in TV guides)
 
     @classmethod
     def parse(cls, raw: dict[str, Any]) -> Team:
@@ -133,7 +134,8 @@ class Team:
         return cls(id=str(raw.get("idTeam") or ""), name=g("strTeam") or "", sport=g("strSport") or "", short=g("strTeamShort"),
                    league=g("strLeague"), league_id=g("idLeague"), league2=g("strLeague2"), stadium=g("strStadium"),
                    city=g("strLocation"), country=g("strCountry"), badge=g("strBadge"), logo=g("strLogo"),
-                   website=g("strWebsite"), colour1=g("strColour1"), colour2=g("strColour2"), gender=g("strGender"))
+                   website=g("strWebsite"), colour1=g("strColour1"), colour2=g("strColour2"), gender=g("strGender"),
+                   alternate=g("strTeamAlternate"))
 
     @property
     def abbr(self) -> str:
@@ -231,11 +233,14 @@ class Memory:
     seeded: bool = False                # the first-run read of eventslast has been done
     upcoming: list[Event] = field(default_factory=list)   # every coming fixture the API listed, soonest first
     recent: list[Event] = field(default_factory=list)     # finished games it has seen, latest first (at most KEEP_RECENT)
+    tv: dict[str, list[dict[str, str]]] = field(default_factory=dict)   # event id -> [{channel, country, source}]
+    tv_checked: dict[str, str] = field(default_factory=dict)            # event id -> when TheSportsDB was last asked
 
     def to_dict(self) -> dict[str, Any]:
         return {"tracked": self.tracked.to_dict() if self.tracked else None, "last": self.last.to_dict() if self.last else None,
                 "checked_next": _iso(self.checked_next), "seeded": self.seeded,
-                "upcoming": [e.to_dict() for e in self.upcoming], "recent": [e.to_dict() for e in self.recent]}
+                "upcoming": [e.to_dict() for e in self.upcoming], "recent": [e.to_dict() for e in self.recent],
+                "tv": self.tv, "tv_checked": self.tv_checked}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Memory:
@@ -243,7 +248,9 @@ class Memory:
                   last=Event.from_dict(data["last"]) if data.get("last") else None,
                   checked_next=_parse_iso(data.get("checked_next")), seeded=bool(data.get("seeded")),
                   upcoming=[Event.from_dict(e) for e in data.get("upcoming") or []],
-                  recent=[Event.from_dict(e) for e in data.get("recent") or []])
+                  recent=[Event.from_dict(e) for e in data.get("recent") or []],
+                  tv={str(k): [dict(i) for i in v] for k, v in (data.get("tv") or {}).items() if isinstance(v, list)},
+                  tv_checked={str(k): str(v) for k, v in (data.get("tv_checked") or {}).items()})
         # memory saved by a version without the lists: the games it knew go into them
         if mem.tracked is not None and not any(e.id == mem.tracked.id for e in mem.upcoming):
             mem.upcoming.insert(0, mem.tracked)
@@ -360,7 +367,7 @@ def _is_home(team: Team, game: Event) -> bool:
     return game.home_name.strip().lower() == team.name.strip().lower()
 
 
-def _brief(game: Event | None, now: datetime, to_local: ToLocal) -> dict[str, Any] | None:
+def _brief(game: Event | None, now: datetime, to_local: ToLocal, tv: dict[str, list[dict[str, str]]] | None = None) -> dict[str, Any] | None:
     """One game for the card: both sides with badges, where and when, the score once it is in."""
     if game is None:
         return None
@@ -374,7 +381,8 @@ def _brief(game: Event | None, now: datetime, to_local: ToLocal) -> dict[str, An
             "sport": game.sport, "home_id": game.home_id, "home": game.home_name, "home_badge": game.home_badge,
             "away_id": game.away_id, "away": game.away_name, "away_badge": game.away_badge,
             "home_score": game.home_score, "away_score": game.away_score, "status": game.status, "finished": finished,
-            "live": bool(game.start and not finished and now >= game.start and (end is None or now < end + timedelta(minutes=RESULT_WAIT_MINUTES)))}
+            "live": bool(game.start and not finished and now >= game.start and (end is None or now < end + timedelta(minutes=RESULT_WAIT_MINUTES))),
+            "tv": [] if finished else list((tv or {}).get(game.id) or [])}
 
 
 def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hours: int,
@@ -412,7 +420,7 @@ def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hour
         "opponent_homeaway": None, "opponent_score": None, "opponent_winner": None, "opponent_record": None,
         "event_id": None, "event_name": None, "event_url": None, "date": None, "kickoff_in": None,
         "venue": None, "location": None, "country": None, "clock": None, "video": None,
-        "tv_network": None, "last_play": None, "odds": None, "series_summary": None,
+        "tv_network": None, "tv": [], "last_play": None, "odds": None, "series_summary": None,
     }
     if game is not None:
         home = _is_home(team, game)
@@ -444,12 +452,14 @@ def present(team: Team, mem: Memory, now: datetime, results_hours: int, pre_hour
             "kickoff_in": kickoff_text(local, loc(now), game.time_known) if state == STATE_PRE and local else None,
             "venue": game.venue, "location": ", ".join(p for p in (game.venue, game.country) if p) or None,
             "country": game.country, "clock": clock, "video": game.video,
+            "tv_network": ", ".join(i["channel"] for i in mem.tv.get(game.id) or []) or None,
+            "tv": list(mem.tv.get(game.id) or []),
         })
-    attrs["next_game"] = _brief(tracked, now, loc) if state in (STATE_POST, STATE_NOT_FOUND) and tracked is not None and game is not tracked else None
-    attrs["last_game"] = _brief(last, now, loc) if state in (STATE_PRE, STATE_IN, STATE_NOT_FOUND) and last is not None else None
+    attrs["next_game"] = _brief(tracked, now, loc, mem.tv) if state in (STATE_POST, STATE_NOT_FOUND) and tracked is not None and game is not tracked else None
+    attrs["last_game"] = _brief(last, now, loc, mem.tv) if state in (STATE_PRE, STATE_IN, STATE_NOT_FOUND) and last is not None else None
     # every game the integration knows, for a card that lays them out by day
-    attrs["fixtures"] = [_brief(e, now, loc) for e in mem.upcoming if e.start is not None]
-    attrs["results"] = [_brief(e, now, loc) for e in mem.recent]
+    attrs["fixtures"] = [_brief(e, now, loc, mem.tv) for e in mem.upcoming if e.start is not None]
+    attrs["results"] = [_brief(e, now, loc, mem.tv) for e in mem.recent]
     attrs["last_update"] = now.isoformat()
     attrs["attribution"] = ATTRIBUTION
     return state, attrs

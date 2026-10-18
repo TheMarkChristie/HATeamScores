@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import SportsDBClient, SportsDBError
+from .guide import get_guide
 from .const import (
     CONF_API_KEY,
     CONF_LEAGUE,
@@ -24,11 +25,14 @@ from .const import (
     DEFAULT_PRE_HOURS,
     DEFAULT_RESULTS_HOURS,
     DOMAIN,
+    SPORTSDB_TV_HOURS,
     STORAGE_VERSION,
+    TV_DAYS_AHEAD,
     UPDATE_MINUTES_IDLE,
     UPDATE_MINUTES_LIVE,
 )
 from .model import Event, Memory, Team, absorb_last, absorb_lookup, absorb_next, needs_lookup, needs_next, next_transition
+from .tv import guide_listings, merge, sportsdb_listings, team_needles
 
 _LOGGER = logging.getLogger(__name__)
 RETRY_MINUTES = 3
@@ -104,6 +108,7 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
                 raise UpdateFailed(f"TheSportsDB: {err}") from err
             _LOGGER.warning("%s: TheSportsDB: %s (keeping the last known fixtures)", self.name, err)
             failed = True
+        await self._update_tv(mem, now, key)
         data = {"memory": mem.to_dict(), "team": self.team.to_dict()}
         if data != self._saved:
             await self._store.async_save(data)
@@ -112,6 +117,39 @@ class SportsDBCoordinator(DataUpdateCoordinator[Memory]):
         if failed:                                   # a refused read is tried again soon, not in half an hour
             self.update_interval = min(self.update_interval, timedelta(minutes=RETRY_MINUTES))
         return mem
+
+    def _extra_names(self, team_id: str | None) -> list[str]:
+        """Other names for this team (TheSportsDB's short name and alternates) to find it in the TV guides."""
+        if not team_id or team_id != self.team.id:
+            return []
+        alt = [a.strip() for a in (self.team.alternate or "").split(",")]
+        return [n for n in [self.team.short, *alt] if n]
+
+    async def _update_tv(self, mem: Memory, now: datetime, key: str) -> None:
+        """The UK and Norwegian channels of every fixture in the next fortnight: the TV guides each update, TheSportsDB's
+        broadcaster list twice a day per game. A guide that has rotated past a game keeps what it found earlier."""
+        horizon = now + timedelta(days=TV_DAYS_AHEAD)
+        games = [e for e in mem.upcoming if e.start is not None and now - timedelta(hours=4) <= e.start <= horizon]
+        programmes = get_guide(self.hass).programmes()      # never waits: the guides download in the background
+        first = self.data is None                              # the refresh at start-up: no extra calls while Home Assistant boots
+        for e in games:
+            before = mem.tv.get(e.id) or []
+            home = team_needles(e.home_name, e.sport, self._extra_names(e.home_id))
+            away = team_needles(e.away_name, e.sport, self._extra_names(e.away_id))
+            found = guide_listings(e.start, home, away, programmes) or [i for i in before if i.get("source") == "guide"]
+            sportsdb = [i for i in before if i.get("source") == "thesportsdb"]
+            asked = mem.tv_checked.get(e.id)
+            stale = asked is None or now - datetime.fromisoformat(asked) >= timedelta(hours=SPORTSDB_TV_HOURS)
+            if stale and e.start > now and not first:
+                try:
+                    sportsdb = sportsdb_listings(await self.client.lookup_tv(key, e.id))
+                    mem.tv_checked[e.id] = now.isoformat()
+                except SportsDBError as err:
+                    _LOGGER.debug("%s: broadcasters of %s not read: %s", self.name, e.id, err)
+            mem.tv[e.id] = merge(found, sportsdb)
+        keep = {e.id for e in mem.upcoming}
+        mem.tv = {k: v for k, v in mem.tv.items() if k in keep}
+        mem.tv_checked = {k: v for k, v in mem.tv_checked.items() if k in keep}
 
     def _interval(self, mem: Memory, now) -> timedelta:
         tracked = mem.tracked
